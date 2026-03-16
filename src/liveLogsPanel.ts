@@ -39,7 +39,7 @@ export class LiveLogsPanel {
         }
 
         const panel = vscode.window.createWebviewPanel(
-            'acidBjornLiveLogs',
+            'bjornCodeLiveLogs',
             'Bjorn Live Logs',
             vscode.ViewColumn.Two,
             {
@@ -58,7 +58,7 @@ export class LiveLogsPanel {
 
         const target = getWorkspaceTarget();
         if (!target || !target.settings.enabled) {
-            this.appendLine('[ERROR] Acid Bjorn is disabled.');
+            this.appendLine('[ERROR] Bjorn Code is disabled.');
             return;
         }
 

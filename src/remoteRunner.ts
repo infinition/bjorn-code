@@ -13,7 +13,7 @@ export class RemoteRunner {
     private getManager(): { manager: ConnectionManager; target: ReturnType<typeof getWorkspaceTarget> } | undefined {
         const target = getWorkspaceTarget();
         if (!target || !target.settings.enabled) {
-            vscode.window.showWarningMessage('Acid Bjorn is disabled.');
+            vscode.window.showWarningMessage('Bjorn Code is disabled.');
             return undefined;
         }
 
@@ -80,14 +80,14 @@ export class RemoteRunner {
         await manager.getSftp();
 
         const terminal = vscode.window.createTerminal({
-            name: 'Acid Bjorn Remote Python'
+            name: 'Bjorn Code Remote Python'
         });
         terminal.show(true);
 
         await vscode.window.withProgress(
             {
                 location: vscode.ProgressLocation.Notification,
-                title: 'Acid Bjorn: Running Python remotely',
+                title: 'Bjorn Code: Running Python remotely',
                 cancellable: false
             },
             async () => {
@@ -111,7 +111,7 @@ export class RemoteRunner {
                 );
 
                 if ((result.code ?? 1) !== 0) {
-                    vscode.window.showErrorMessage('Acid Bjorn: Remote Python execution failed.', 'Open Output Logs').then((action) => {
+                    vscode.window.showErrorMessage('Bjorn Code: Remote Python execution failed.', 'Open Output Logs').then((action) => {
                         if (action === 'Open Output Logs') {
                             this.output.show(true);
                         }
@@ -119,7 +119,7 @@ export class RemoteRunner {
                     return;
                 }
 
-                vscode.window.showInformationMessage('Acid Bjorn: Remote Python execution completed.');
+                vscode.window.showInformationMessage('Bjorn Code: Remote Python execution completed.');
             }
         );
     }
@@ -133,7 +133,7 @@ export class RemoteRunner {
 
         const services = target!.settings.services;
         if (services.length === 0) {
-            vscode.window.showWarningMessage('Configure acidBjorn.services first.');
+            vscode.window.showWarningMessage('Configure bjornCode.services first.');
             return;
         }
 
@@ -172,7 +172,7 @@ export class RemoteRunner {
         );
 
         if ((result.code ?? 1) !== 0) {
-            vscode.window.showErrorMessage(`Acid Bjorn: Service ${action} failed for ${selected}.`, 'Open Output Logs').then((choice) => {
+            vscode.window.showErrorMessage(`Bjorn Code: Service ${action} failed for ${selected}.`, 'Open Output Logs').then((choice) => {
                 if (choice === 'Open Output Logs') {
                     this.output.show(true);
                 }
@@ -183,7 +183,7 @@ export class RemoteRunner {
         if (stdout.trim().length > 0 || stderr.trim().length > 0) {
             this.logger.debug(`Service ${action} output captured for ${selected}`);
         }
-        vscode.window.showInformationMessage(`Acid Bjorn: Service ${selected} ${action} done.`);
+        vscode.window.showInformationMessage(`Bjorn Code: Service ${selected} ${action} done.`);
     }
 
     /**
@@ -211,7 +211,7 @@ export class RemoteRunner {
         await vscode.window.withProgress(
             {
                 location: vscode.ProgressLocation.Notification,
-                title: `Acid Bjorn: Restarting ${serviceName}...`,
+                title: `Bjorn Code: Restarting ${serviceName}...`,
                 cancellable: false
             },
             async () => {
@@ -221,9 +221,9 @@ export class RemoteRunner {
                 );
                 if ((result.code ?? 1) !== 0) {
                     this.logger.error(`Restart ${serviceName} failed: ${result.stderr}`);
-                    vscode.window.showErrorMessage(`Acid Bjorn: Failed to restart ${serviceName}. ${result.stderr.trim()}`);
+                    vscode.window.showErrorMessage(`Bjorn Code: Failed to restart ${serviceName}. ${result.stderr.trim()}`);
                 } else {
-                    vscode.window.showInformationMessage(`Acid Bjorn: ${serviceName} restarted.`);
+                    vscode.window.showInformationMessage(`Bjorn Code: ${serviceName} restarted.`);
                 }
             }
         );
@@ -256,7 +256,7 @@ export class RemoteRunner {
                 // Expected: connection drops on reboot
             });
 
-            vscode.window.showInformationMessage('Acid Bjorn: Reboot command sent. Waiting for Pi to come back...');
+            vscode.window.showInformationMessage('Bjorn Code: Reboot command sent. Waiting for Pi to come back...');
 
             // Wait and attempt reconnect
             await new Promise<void>((resolve) => setTimeout(resolve, 15000));
@@ -284,9 +284,9 @@ export class RemoteRunner {
             }
 
             if (reconnected) {
-                vscode.window.showInformationMessage('Acid Bjorn: Pi is back online!');
+                vscode.window.showInformationMessage('Bjorn Code: Pi is back online!');
             } else {
-                vscode.window.showWarningMessage('Acid Bjorn: Pi has not come back yet. Try reconnecting manually.');
+                vscode.window.showWarningMessage('Bjorn Code: Pi has not come back yet. Try reconnecting manually.');
             }
         } catch (err: any) {
             this.logger.error(`Reboot error: ${err.message}`);
@@ -307,7 +307,7 @@ export class RemoteRunner {
 
         const client = (manager as any).conn?.client;
         if (!client) {
-            vscode.window.showErrorMessage('Acid Bjorn: No SSH client available.');
+            vscode.window.showErrorMessage('Bjorn Code: No SSH client available.');
             return;
         }
 

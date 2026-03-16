@@ -18,25 +18,25 @@ export class BjornFileDecorationProvider implements vscode.FileDecorationProvide
                 return {
                     badge: 'S',
                     color: new vscode.ThemeColor('testing.iconPassed'),
-                    tooltip: 'Acid Bjorn: synced'
+                    tooltip: 'Bjorn Code: synced'
                 };
             case SyncStatus.Pending:
                 return {
                     badge: 'P',
                     color: new vscode.ThemeColor('charts.blue'),
-                    tooltip: 'Acid Bjorn: pending'
+                    tooltip: 'Bjorn Code: pending'
                 };
             case SyncStatus.Modified:
                 return {
                     badge: 'M',
                     color: new vscode.ThemeColor('charts.yellow'),
-                    tooltip: 'Acid Bjorn: modified'
+                    tooltip: 'Bjorn Code: modified'
                 };
             case SyncStatus.Error:
                 return {
                     badge: 'E',
                     color: new vscode.ThemeColor('testing.iconFailed'),
-                    tooltip: 'Acid Bjorn: error'
+                    tooltip: 'Bjorn Code: error'
                 };
             default:
                 return;

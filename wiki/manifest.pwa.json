@@ -1,7 +1,7 @@
 {
-  "name": "ACIDBJORN WIKI",
-  "short_name": "AcidBjorn",
-  "description": "Official Documentation and Wiki for AcidBjorn",
+  "name": "BJORNCODE WIKI",
+  "short_name": "BjornCode",
+  "description": "Official Documentation and Wiki for BjornCode",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0B0C0E",

@@ -5,7 +5,7 @@ import * as path from 'path';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-export interface AcidBjornSettings {
+export interface BjornCodeSettings {
     enabled: boolean;
     autoSync: boolean;
     host: string;
@@ -33,10 +33,10 @@ export interface AcidBjornSettings {
 export interface WorkspaceTarget {
     workspaceFolder: vscode.WorkspaceFolder;
     workspaceRoot: string;
-    settings: AcidBjornSettings;
+    settings: BjornCodeSettings;
 }
 
-const MANAGED_DIR_CONTAINER = '.acid-bjorn';
+const MANAGED_DIR_CONTAINER = '.bjorn-code';
 const MANAGED_STATE_FILE = '.managed-root.json';
 
 function expandHome(p?: string): string | undefined {
@@ -59,11 +59,11 @@ export function getWorkspaceTarget(resource?: vscode.Uri): WorkspaceTarget | und
         return undefined;
     }
 
-    const config = vscode.workspace.getConfiguration('acidBjorn', workspaceFolder.uri);
+    const config = vscode.workspace.getConfiguration('bjornCode', workspaceFolder.uri);
     const localPath = config.get<string>('localPath')?.trim();
     const workspaceRoot = resolveManagedWorkspaceRoot(workspaceFolder, localPath);
 
-    const settings: AcidBjornSettings = {
+    const settings: BjornCodeSettings = {
         enabled: config.get<boolean>('enabled', false),
         autoSync: config.get<boolean>('autoSync', true),
         host: config.get<string>('remoteIp', ''),
@@ -136,7 +136,7 @@ function resolveManagedWorkspaceRoot(workspaceFolder: vscode.WorkspaceFolder, co
     }
 }
 
-export function loadPrivateKey(settings: AcidBjornSettings): Buffer | undefined {
+export function loadPrivateKey(settings: BjornCodeSettings): Buffer | undefined {
     if (!settings.privateKeyPath) {
         return undefined;
     }

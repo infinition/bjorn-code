@@ -3,7 +3,7 @@ import { EventEmitter } from 'events';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { AcidBjornSettings, loadPrivateKey } from './Config';
+import { BjornCodeSettings, loadPrivateKey } from './Config';
 import { Logger } from './Logger';
 
 export type ConnectionState = 'DISCONNECTED' | 'CONNECTING' | 'CONNECTED' | 'SYNCING' | 'ERROR';
@@ -32,7 +32,7 @@ interface ManagedConnection {
 export class ConnectionManager extends EventEmitter {
     private static instances = new Map<string, ConnectionManager>();
 
-    public static getOrCreate(target: TargetKey, settings: AcidBjornSettings, logger: Logger): ConnectionManager {
+    public static getOrCreate(target: TargetKey, settings: BjornCodeSettings, logger: Logger): ConnectionManager {
         const key = keyFor(target);
         const existing = ConnectionManager.instances.get(key);
         if (existing) {
@@ -61,7 +61,7 @@ export class ConnectionManager extends EventEmitter {
     private constructor(
         private readonly instanceKey: string,
         private readonly target: TargetKey,
-        private settings: AcidBjornSettings,
+        private settings: BjornCodeSettings,
         private readonly logger: Logger
     ) {
         super();
@@ -223,7 +223,7 @@ export class ConnectionManager extends EventEmitter {
                 return;
             }
 
-            client.exec('echo acid-bjorn-keepalive', (err, stream) => {
+            client.exec('echo bjorn-code-keepalive', (err, stream) => {
                 if (err) {
                     this.logger.warn(`Keepalive failed: ${err.message}`);
                     return;

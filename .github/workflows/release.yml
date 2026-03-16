@@ -36,7 +36,7 @@ jobs:
 
       # 5️⃣ Package VSIX
       - name: Package Extension
-        run: npx @vscode/vsce package -o acidsnip-${{ github.ref_name }}.vsix
+        run: npx @vscode/vsce package -o bjorn-code-${{ github.ref_name }}.vsix
 
       # 6️⃣ Generate structured release notes
       - name: Generate release notes
@@ -68,9 +68,9 @@ jobs:
         with:
           name: ${{ github.ref_name }}
           body: |
-            ## 🧩 AcidSnip – VS Code Extension
+            ## 🧩 Bjorn Code – VS Code Extension
 
             ${{ env.RELEASE_NOTES }}
-          files: acidsnip-${{ github.ref_name }}.vsix
+          files: bjorn-code-${{ github.ref_name }}.vsix
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

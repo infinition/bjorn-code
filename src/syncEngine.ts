@@ -93,7 +93,7 @@ export class SyncEngine implements vscode.Disposable {
             }
             this.updateState('ERROR');
             void vscode.window
-                .showErrorMessage(`Acid Bjorn: ${job.type} failed (${path.basename(job.key)})`, 'Open Output Logs')
+                .showErrorMessage(`Bjorn Code: ${job.type} failed (${path.basename(job.key)})`, 'Open Output Logs')
                 .then((action) => {
                     if (action === 'Open Output Logs') {
                         this.outputChannel.show(true);
@@ -147,7 +147,7 @@ export class SyncEngine implements vscode.Disposable {
     public async connect(_resource?: vscode.Uri): Promise<void> {
         const target = this.getManagedTarget();
         if (!target) {
-            vscode.window.showWarningMessage('Acid Bjorn: No workspace found.');
+            vscode.window.showWarningMessage('Bjorn Code: No workspace found.');
             return;
         }
 
@@ -254,7 +254,7 @@ export class SyncEngine implements vscode.Disposable {
 
         const target = getWorkspaceTarget();
         if (!target || !target.settings.enabled) {
-            vscode.window.showWarningMessage('Acid Bjorn is disabled.');
+            vscode.window.showWarningMessage('Bjorn Code is disabled.');
             return;
         }
 
@@ -263,7 +263,7 @@ export class SyncEngine implements vscode.Disposable {
         await vscode.window.withProgress(
             {
                 location: vscode.ProgressLocation.Notification,
-                title: 'Acid Bjorn: Push incremental to remote',
+                title: 'Bjorn Code: Push incremental to remote',
                 cancellable: false
             },
             async (progress) => {
@@ -272,7 +272,7 @@ export class SyncEngine implements vscode.Disposable {
                     const changes = [...this.pendingChanges.entries()];
                     if (changes.length === 0) {
                         this.updateState('CONNECTED');
-                        vscode.window.showInformationMessage('Acid Bjorn: nothing to push.');
+                        vscode.window.showInformationMessage('Bjorn Code: nothing to push.');
                         return;
                     }
 
@@ -295,7 +295,7 @@ export class SyncEngine implements vscode.Disposable {
 
                     await this.waitForQueueDrain();
                     this.updateState('CONNECTED');
-                    vscode.window.showInformationMessage('Acid Bjorn: Push completed.');
+                    vscode.window.showInformationMessage('Bjorn Code: Push completed.');
                 } finally {
                     this.syncing = false;
                 }
@@ -313,7 +313,7 @@ export class SyncEngine implements vscode.Disposable {
 
         const target = getWorkspaceTarget();
         if (!target || !target.settings.enabled) {
-            vscode.window.showWarningMessage('Acid Bjorn is disabled.');
+            vscode.window.showWarningMessage('Bjorn Code is disabled.');
             return;
         }
 
@@ -322,7 +322,7 @@ export class SyncEngine implements vscode.Disposable {
         await vscode.window.withProgress(
             {
                 location: vscode.ProgressLocation.Notification,
-                title: 'Acid Bjorn: Full push to remote',
+                title: 'Bjorn Code: Full push to remote',
                 cancellable: true
             },
             async (progress, token) => {
@@ -353,7 +353,7 @@ export class SyncEngine implements vscode.Disposable {
 
                     await this.waitForQueueDrain();
                     this.updateState('CONNECTED');
-                    vscode.window.showInformationMessage(`Acid Bjorn: Full push completed (${queued} files).`);
+                    vscode.window.showInformationMessage(`Bjorn Code: Full push completed (${queued} files).`);
                 } finally {
                     this.syncing = false;
                 }
@@ -368,7 +368,7 @@ export class SyncEngine implements vscode.Disposable {
 
         const target = getWorkspaceTarget();
         if (!target || !target.settings.enabled) {
-            vscode.window.showWarningMessage('Acid Bjorn is disabled.');
+            vscode.window.showWarningMessage('Bjorn Code is disabled.');
             return;
         }
 
@@ -377,7 +377,7 @@ export class SyncEngine implements vscode.Disposable {
         await vscode.window.withProgress(
             {
                 location: vscode.ProgressLocation.Notification,
-                title: 'Acid Bjorn: Pull from remote',
+                title: 'Bjorn Code: Pull from remote',
                 cancellable: true
             },
             async (progress, token) => {
@@ -402,7 +402,7 @@ export class SyncEngine implements vscode.Disposable {
                     }
 
                     await this.waitForQueueDrain();
-                    vscode.window.showInformationMessage(`Acid Bjorn: Pull completed (${queued} files).`);
+                    vscode.window.showInformationMessage(`Bjorn Code: Pull completed (${queued} files).`);
                 } finally {
                     this.syncing = false;
                     this.pullInProgress = false;
@@ -417,12 +417,12 @@ export class SyncEngine implements vscode.Disposable {
     public async diffWithRemote(uri: vscode.Uri): Promise<void> {
         const target = this.getManagedTarget();
         if (!target || !target.settings.enabled) {
-            vscode.window.showWarningMessage('Acid Bjorn is disabled.');
+            vscode.window.showWarningMessage('Bjorn Code is disabled.');
             return;
         }
 
         if (!this.isManagedPath(uri.fsPath)) {
-            vscode.window.showWarningMessage('Acid Bjorn: path is outside configured sync root.');
+            vscode.window.showWarningMessage('Bjorn Code: path is outside configured sync root.');
             return;
         }
 
@@ -434,14 +434,14 @@ export class SyncEngine implements vscode.Disposable {
 
         await this.connect();
 
-        const tmpDir = path.join(os.tmpdir(), 'acid-bjorn-diff');
+        const tmpDir = path.join(os.tmpdir(), 'bjorn-code-diff');
         await fs.promises.mkdir(tmpDir, { recursive: true });
         const tempFile = path.join(tmpDir, `remote_${path.basename(uri.fsPath)}`);
 
         try {
             await this.fastGet(remotePath, tempFile, target.settings.operationTimeoutMs);
         } catch (err: any) {
-            vscode.window.showErrorMessage(`Acid Bjorn: Cannot fetch remote file: ${err.message}`);
+            vscode.window.showErrorMessage(`Bjorn Code: Cannot fetch remote file: ${err.message}`);
             return;
         }
 
@@ -479,7 +479,7 @@ export class SyncEngine implements vscode.Disposable {
 
     public async forcePushUri(uri: vscode.Uri): Promise<void> {
         if (!this.isManagedPath(uri.fsPath)) {
-            vscode.window.showWarningMessage('Acid Bjorn: path is outside configured sync root, ignored.');
+            vscode.window.showWarningMessage('Bjorn Code: path is outside configured sync root, ignored.');
             return;
         }
 
@@ -505,7 +505,7 @@ export class SyncEngine implements vscode.Disposable {
             return;
         }
         if (!this.isManagedPath(uri.fsPath)) {
-            vscode.window.showWarningMessage('Acid Bjorn: path is outside configured sync root, ignored.');
+            vscode.window.showWarningMessage('Bjorn Code: path is outside configured sync root, ignored.');
             return;
         }
 
@@ -669,9 +669,9 @@ export class SyncEngine implements vscode.Disposable {
         await fs.promises.copyFile(localPath, localConflict).catch(() => undefined);
         await this.fastGet(remotePath, remoteConflict, timeoutMs).catch(() => undefined);
         this.treeDataProvider.addConflict(localPath, localConflict, remoteConflict);
-        void vscode.window.showWarningMessage(`Acid Bjorn conflict detected for ${path.basename(localPath)}`, 'Open Conflicts').then((action) => {
+        void vscode.window.showWarningMessage(`Bjorn Code conflict detected for ${path.basename(localPath)}`, 'Open Conflicts').then((action) => {
             if (action === 'Open Conflicts') {
-                vscode.commands.executeCommand('acid-bjorn.openConflictsView');
+                vscode.commands.executeCommand('bjorn-code.openConflictsView');
             }
         });
     }

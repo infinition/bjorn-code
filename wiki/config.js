@@ -1,13 +1,13 @@
 /**
  * AcidWiki Configuration (Master Template)
- * Ce fichier est écrasé dynamiquement par le workflow GitHub Actions.
- * Ne modifiez pas les valeurs ici pour un projet spécifique, utilisez acidwiki.json.
+ * This file is dynamically overwritten by the GitHub Actions workflow.
+ * Do not modify values here for a specific project — use acidwiki.json instead.
  */
 const CONFIG = {
-    // Project Information (Sera remplacé par le nom du Repo)
-    projectName: "ACIDBJORN",
-    projectSubtitle: "ACIDBJORN WIKI",
-    description: "Official Documentation and Wiki for AcidBjorn",
+    // Project Information (Replaced by the repo name)
+    projectName: "BJORNCODE",
+    projectSubtitle: "BJORNCODE WIKI",
+    description: "Official Documentation and Wiki for BjornCode",
 
     // Versioning Settings
     versioning: {
@@ -17,7 +17,7 @@ const CONFIG = {
     },
 
     // GitHub Repository
-    repo: "infinition/AcidBjorn",
+    repo: "infinition/BjornCode",
     branch: "main",
 
     // Theme Settings
@@ -55,14 +55,14 @@ const CONFIG = {
         debug: true
     },
 
-    // Custom Navigation Links (Vides par défaut)
+    // Custom Navigation Links (Empty by default)
     links: {
         top: [],
         bottom: []
     },
 
     // Footer
-    footerText: "© 2026 ACIDBJORN WIKI - All rights reserved",
+    footerText: "© 2026 BJORNCODE WIKI - All rights reserved",
 
     // UI Strings
     ui: {
@@ -97,7 +97,7 @@ const CONFIG = {
     social: {
         discord: null,
         reddit: null,
-        github: "https://github.com/infinition/AcidBjorn", // Virgule respectée par le script
+        github: "https://github.com/infinition/BjornCode",
         buyMeACoffee: "https://buymeacoffee.com/infinition"
     },
 
@@ -105,6 +105,6 @@ const CONFIG = {
     badges: {
         discordLabel: "COMMUNITY",
         redditLabel: "REDDIT",
-        githubLabel: "ACIDBJORN"
+        githubLabel: "BJORNCODE"
     }
 };

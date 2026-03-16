@@ -32,7 +32,7 @@ export class BjornFileItem extends vscode.TreeItem {
 
         if (!this.isDirectory) {
             this.command = {
-                command: 'acid-bjorn.openFile',
+                command: 'bjorn-code.openFile',
                 title: 'Open File',
                 arguments: [this.resourceUri]
             };
@@ -148,7 +148,7 @@ class BjornRootItem extends vscode.TreeItem {
 
 export type BjornTreeElement = BjornRootItem | BjornInfoItem | BjornFileItem | BjornRemoteItem;
 
-const BJORN_TREE_MIME = 'application/vnd.code.tree.acidBjornExplorer';
+const BJORN_TREE_MIME = 'application/vnd.code.tree.bjornCodeExplorer';
 
 type RemoteLister = (remoteDir: string) => Promise<{ name: string; isDirectory: boolean; size: number; mtime: number }[]>;
 
@@ -437,7 +437,7 @@ export class BjornTreeDataProvider implements vscode.TreeDataProvider<BjornTreeE
                         `${conflict.localArtifact}\n${conflict.remoteArtifact}`,
                         'bjornConflict',
                         {
-                            command: 'acid-bjorn.openFile',
+                            command: 'bjorn-code.openFile',
                             title: 'Open local conflict',
                             arguments: [vscode.Uri.file(conflict.localArtifact)]
                         }
@@ -474,31 +474,31 @@ export class BjornTreeDataProvider implements vscode.TreeDataProvider<BjornTreeE
         if (element === this.rootTools) {
             return Promise.resolve([
                 new BjornInfoItem('Run Python', 'play-circle', 'charts.blue', 'Run current Python file remotely', 'bjornToolRunPython', {
-                    command: 'acid-bjorn.runPythonRemote',
+                    command: 'bjorn-code.runPythonRemote',
                     title: 'Run Python'
                 }),
                 new BjornInfoItem('SSH Terminal', 'terminal', 'charts.green', 'Open SSH terminal to Pi', 'bjornToolSshTerminal', {
-                    command: 'acid-bjorn.openSshTerminal',
+                    command: 'bjorn-code.openSshTerminal',
                     title: 'SSH Terminal'
                 }),
                 new BjornInfoItem('Restart Bjorn', 'debug-restart', 'charts.orange', 'Restart Bjorn service', 'bjornToolRestartService', {
-                    command: 'acid-bjorn.restartBjorn',
+                    command: 'bjorn-code.restartBjorn',
                     title: 'Restart Bjorn'
                 }),
                 new BjornInfoItem('Reboot Pi', 'vm-connect', 'testing.iconFailed', 'Reboot the Raspberry Pi', 'bjornToolReboot', {
-                    command: 'acid-bjorn.rebootPi',
+                    command: 'bjorn-code.rebootPi',
                     title: 'Reboot Pi'
                 }),
                 new BjornInfoItem('Service Status', 'server-process', 'charts.green', 'Check systemd service', 'bjornToolServiceStatus', {
-                    command: 'acid-bjorn.service.status',
+                    command: 'bjorn-code.service.status',
                     title: 'Service Status'
                 }),
                 new BjornInfoItem('Tail Service Logs', 'list-tree', 'charts.orange', 'Tail journalctl logs', 'bjornToolServiceTail', {
-                    command: 'acid-bjorn.service.tail',
+                    command: 'bjorn-code.service.tail',
                     title: 'Tail Logs'
                 }),
                 new BjornInfoItem('Live Logs Panel', 'open-preview', 'charts.blue', 'Open live logs webview', 'bjornToolLiveLogs', {
-                    command: 'acid-bjorn.openLiveLogs',
+                    command: 'bjorn-code.openLiveLogs',
                     title: 'Live Logs'
                 })
             ]);

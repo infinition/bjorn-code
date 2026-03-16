@@ -1,6 +1,8 @@
 import { Client, ConnectConfig, SFTPWrapper } from 'ssh2';
 import { EventEmitter } from 'events';
 import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import { AcidBjornSettings, loadPrivateKey } from './Config';
 import { Logger } from './Logger';
 
@@ -38,9 +40,16 @@ export class ConnectionManager extends EventEmitter {
             return existing;
         }
 
-        const instance = new ConnectionManager(target, settings, logger);
+        const instance = new ConnectionManager(key, target, settings, logger);
         ConnectionManager.instances.set(key, instance);
         return instance;
+    }
+
+    public static disposeAll(): void {
+        for (const instance of ConnectionManager.instances.values()) {
+            instance.dispose();
+        }
+        ConnectionManager.instances.clear();
     }
 
     private conn: ManagedConnection = {
@@ -50,6 +59,7 @@ export class ConnectionManager extends EventEmitter {
     private manualDisconnect = false;
 
     private constructor(
+        private readonly instanceKey: string,
         private readonly target: TargetKey,
         private settings: AcidBjornSettings,
         private readonly logger: Logger
@@ -86,6 +96,22 @@ export class ConnectionManager extends EventEmitter {
         }
     }
 
+    private resolveKnownHostsPath(): string | undefined {
+        const home = process.env.USERPROFILE || process.env.HOME || os.homedir();
+        if (!home) {
+            return undefined;
+        }
+        const khPath = path.join(home, '.ssh', 'known_hosts');
+        try {
+            if (fs.existsSync(khPath)) {
+                return khPath;
+            }
+        } catch {
+            // ignore
+        }
+        return undefined;
+    }
+
     private async createConnection(): Promise<SFTPWrapper> {
         this.manualDisconnect = false;
         this.setState('CONNECTING');
@@ -104,13 +130,10 @@ export class ConnectionManager extends EventEmitter {
             tryKeyboard: true
         };
 
-        const knownHostsPath = process.env.HOME
-            ? `${process.env.HOME}/.ssh/known_hosts`
-            : undefined;
-
-        if (knownHostsPath && fs.existsSync(knownHostsPath)) {
-            connectConfig.hostVerifier = () => true;
-        }
+        // Accept all host keys — Pi on local network, key checking is impractical
+        // when IPs change. If known_hosts exists we still skip verification since
+        // the Pi's key may rotate after re-flashes.
+        connectConfig.hostVerifier = () => true;
 
         return new Promise<SFTPWrapper>((resolve, reject) => {
             const client = new Client();
@@ -169,6 +192,14 @@ export class ConnectionManager extends EventEmitter {
                 this.setState('DISCONNECTED');
                 if (!this.manualDisconnect) {
                     this.scheduleReconnect();
+                }
+            });
+
+            client.on('keyboard-interactive', (_name, _instructions, _instructionsLang, prompts, finish) => {
+                if (prompts.length > 0 && this.settings.password) {
+                    finish([this.settings.password]);
+                } else {
+                    finish([]);
                 }
             });
 
@@ -315,6 +346,7 @@ export class ConnectionManager extends EventEmitter {
         this.conn.client?.end();
         this.cleanupConnectionOnly();
         this.setState('DISCONNECTED');
+        ConnectionManager.instances.delete(this.instanceKey);
     }
 
     public disconnect(): void {

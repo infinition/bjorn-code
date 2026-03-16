@@ -1,436 +1,584 @@
 {
-    "name":  "acid-bjorn",
-    "displayName":  "Acid Bjorn",
-    "description":  "Bi-directional synchronization for Bjorn Cyberviking project",
-    "version":  "1.2.0",
-    "publisher":  "nephystos",
-    "repository":  {
-                       "type":  "git",
-                       "url":  "https://github.com/infinition/AcidBjorn.git"
-                   },
-    "bugs":  {
-                 "url":  "https://github.com/infinition/AcidBjorn/issues"
-             },
-    "homepage":  "https://github.com/infinition/AcidBjorn#readme",
-    "engines":  {
-                    "vscode":  "^1.75.0"
+    "name": "acid-bjorn",
+    "displayName": "Acid Bjorn",
+    "description": "Bi-directional synchronization for Bjorn Cyberviking project",
+    "version": "2.0.0",
+    "publisher": "nephystos",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/infinition/AcidBjorn.git"
+    },
+    "bugs": {
+        "url": "https://github.com/infinition/AcidBjorn/issues"
+    },
+    "homepage": "https://github.com/infinition/AcidBjorn#readme",
+    "engines": {
+        "vscode": "^1.75.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [
+        "onStartupFinished",
+        "onView:acidBjornExplorer",
+        "onCommand:acid-bjorn.openView"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "commands": [
+            {
+                "title": "Acid Bjorn: Push to Remote",
+                "command": "acid-bjorn.syncNow",
+                "icon": "$(cloud-upload)"
+            },
+            {
+                "title": "Acid Bjorn: Full Push (scan all files)",
+                "command": "acid-bjorn.fullSync",
+                "icon": "$(repo-push)"
+            },
+            {
+                "title": "Acid Bjorn: Connect",
+                "command": "acid-bjorn.connect",
+                "icon": "$(plug)"
+            },
+            {
+                "title": "Acid Bjorn: Disconnect",
+                "command": "acid-bjorn.disconnect",
+                "icon": "$(debug-disconnect)"
+            },
+            {
+                "title": "Acid Bjorn: Toggle Connection",
+                "command": "acid-bjorn.toggleConnection",
+                "icon": "$(plug)"
+            },
+            {
+                "title": "Acid Bjorn: Connected",
+                "command": "acid-bjorn.toggleConnection.connected",
+                "icon": "$(circle-filled)"
+            },
+            {
+                "title": "Acid Bjorn: Syncing...",
+                "command": "acid-bjorn.toggleConnection.syncing",
+                "icon": "$(sync~spin)"
+            },
+            {
+                "title": "Acid Bjorn: Disconnected",
+                "command": "acid-bjorn.toggleConnection.disconnected",
+                "icon": "$(debug-disconnect)"
+            },
+            {
+                "title": "Acid Bjorn: Error",
+                "command": "acid-bjorn.toggleConnection.error",
+                "icon": "$(error)"
+            },
+            {
+                "title": "Acid Bjorn: Pull from Remote",
+                "command": "acid-bjorn.syncPull",
+                "icon": "$(cloud-download)"
+            },
+            {
+                "title": "Acid Bjorn: Open Settings",
+                "command": "acid-bjorn.openSettings",
+                "icon": "$(settings-gear)"
+            },
+            {
+                "command": "acid-bjorn.openFile",
+                "title": "Acid Bjorn: Open File"
+            },
+            {
+                "command": "acid-bjorn.toggleAutoSync",
+                "title": "Acid Bjorn: Toggle Auto-Sync"
+            },
+            {
+                "title": "Acid Bjorn: Toggle ON/OFF",
+                "command": "acid-bjorn.toggleEnabled",
+                "icon": "$(power)"
+            },
+            {
+                "title": "Acid Bjorn: Status Actions",
+                "command": "acid-bjorn.statusActions",
+                "icon": "$(pulse)"
+            },
+            {
+                "title": "Acid Bjorn: Sync This File/Folder",
+                "command": "acid-bjorn.syncResource",
+                "icon": "$(cloud-upload)"
+            },
+            {
+                "title": "Acid Bjorn: Download Remote Version",
+                "command": "acid-bjorn.downloadResource",
+                "icon": "$(cloud-download)"
+            },
+            {
+                "title": "Acid Bjorn: Compare with Remote",
+                "command": "acid-bjorn.diffWithRemote",
+                "icon": "$(diff)"
+            },
+            {
+                "command": "acid-bjorn.addInclude",
+                "title": "Acid Bjorn: Add to Sync Scope (include)"
+            },
+            {
+                "command": "acid-bjorn.addExclusion",
+                "title": "Acid Bjorn: Exclude from Sync"
+            },
+            {
+                "title": "Acid Bjorn: Run Python File Remotely",
+                "command": "acid-bjorn.runPythonRemote",
+                "icon": "$(play-circle)"
+            },
+            {
+                "command": "acid-bjorn.service.start",
+                "title": "Acid Bjorn: Service Start"
+            },
+            {
+                "command": "acid-bjorn.service.stop",
+                "title": "Acid Bjorn: Service Stop"
+            },
+            {
+                "command": "acid-bjorn.service.restart",
+                "title": "Acid Bjorn: Service Restart"
+            },
+            {
+                "command": "acid-bjorn.service.status",
+                "title": "Acid Bjorn: Service Status"
+            },
+            {
+                "command": "acid-bjorn.service.enable",
+                "title": "Acid Bjorn: Service Enable"
+            },
+            {
+                "command": "acid-bjorn.service.disable",
+                "title": "Acid Bjorn: Service Disable"
+            },
+            {
+                "command": "acid-bjorn.service.tail",
+                "title": "Acid Bjorn: Tail Service Logs"
+            },
+            {
+                "command": "acid-bjorn.openConflictsView",
+                "title": "Acid Bjorn: Open Conflicts"
+            },
+            {
+                "command": "acid-bjorn.renameResource",
+                "title": "Acid Bjorn: Rename"
+            },
+            {
+                "command": "acid-bjorn.deleteResource",
+                "title": "Acid Bjorn: Delete"
+            },
+            {
+                "command": "acid-bjorn.newFile",
+                "title": "Acid Bjorn: New File"
+            },
+            {
+                "command": "acid-bjorn.newFolder",
+                "title": "Acid Bjorn: New Folder"
+            },
+            {
+                "command": "acid-bjorn.importIntoFolder",
+                "title": "Acid Bjorn: Import Here"
+            },
+            {
+                "command": "acid-bjorn.openView",
+                "title": "Acid Bjorn: Open View",
+                "icon": "$(sidebar-left)"
+            },
+            {
+                "title": "Acid Bjorn: Restart Bjorn Service",
+                "command": "acid-bjorn.restartBjorn",
+                "icon": "$(debug-restart)"
+            },
+            {
+                "title": "Acid Bjorn: Reboot Pi",
+                "command": "acid-bjorn.rebootPi",
+                "icon": "$(vm-connect)"
+            },
+            {
+                "title": "Acid Bjorn: SSH Terminal",
+                "command": "acid-bjorn.openSshTerminal",
+                "icon": "$(terminal)"
+            },
+            {
+                "title": "Acid Bjorn: Live Logs Panel",
+                "command": "acid-bjorn.openLiveLogs",
+                "icon": "$(open-preview)"
+            },
+            {
+                "title": "Acid Bjorn: Sync Summary",
+                "command": "acid-bjorn.syncSummary",
+                "icon": "$(list-flat)"
+            }
+        ],
+        "configuration": {
+            "title": "Acid Bjorn",
+            "properties": {
+                "acidBjorn.remoteIp": {
+                    "type": "string",
+                    "default": "192.168.1.15",
+                    "description": "IP address of the Raspberry Pi"
                 },
-    "categories":  [
-                       "Other"
-                   ],
-    "activationEvents":  [
-                             "onStartupFinished",
-                             "onView:acidBjornExplorer",
-                             "onCommand:acid-bjorn.openView"
-                         ],
-    "main":  "./out/extension.js",
-    "contributes":  {
-                        "commands":  [
-                                         {
-                                             "title":  "Acid Bjorn: Push to Remote",
-                                             "command":  "acid-bjorn.syncNow",
-                                             "icon":  "$(cloud-upload)"
-                                         },
-                                         {
-                                             "title":  "Acid Bjorn: Connect",
-                                             "command":  "acid-bjorn.connect",
-                                             "icon":  "$(plug)"
-                                         },
-                                         {
-                                             "title":  "Acid Bjorn: Disconnect",
-                                             "command":  "acid-bjorn.disconnect",
-                                             "icon":  "$(debug-disconnect)"
-                                         },
-                                         {
-                                             "title":  "Acid Bjorn: Toggle Connection",
-                                             "command":  "acid-bjorn.toggleConnection",
-                                             "icon":  "$(sync~spin)"
-                                         },
-                                         {
-                                             "title":  "Acid Bjorn: Pull from Remote",
-                                             "command":  "acid-bjorn.syncPull",
-                                             "icon":  "$(cloud-download)"
-                                         },
-                                         {
-                                             "title":  "Acid Bjorn: Open Settings",
-                                             "command":  "acid-bjorn.openSettings",
-                                             "icon":  "$(settings-gear)"
-                                         },
-                                         {
-                                             "command":  "acid-bjorn.openFile",
-                                             "title":  "Acid Bjorn: Open File"
-                                         },
-                                         {
-                                             "command":  "acid-bjorn.toggleAutoSync",
-                                             "title":  "Acid Bjorn: Toggle Auto-Sync"
-                                         },
-                                         {
-                                             "title":  "Acid Bjorn: Toggle ON/OFF",
-                                             "command":  "acid-bjorn.toggleEnabled",
-                                             "icon":  "$(power)"
-                                         },
-                                         {
-                                             "title":  "Acid Bjorn: Status Actions",
-                                             "command":  "acid-bjorn.statusActions",
-                                             "icon":  "$(pulse)"
-                                         },
-                                         {
-                                             "title":  "Acid Bjorn: Sync This File/Folder",
-                                             "command":  "acid-bjorn.syncResource",
-                                             "icon":  "$(cloud-upload)"
-                                         },
-                                         {
-                                             "title":  "Acid Bjorn: Download Remote Version",
-                                             "command":  "acid-bjorn.downloadResource",
-                                             "icon":  "$(cloud-download)"
-                                         },
-                                         {
-                                             "command":  "acid-bjorn.addInclude",
-                                             "title":  "Acid Bjorn: Add to Sync Scope (include)"
-                                         },
-                                         {
-                                             "command":  "acid-bjorn.addExclusion",
-                                             "title":  "Acid Bjorn: Exclude from Sync"
-                                         },
-                                         {
-                                             "title":  "Acid Bjorn: Run Python File Remotely",
-                                             "command":  "acid-bjorn.runPythonRemote",
-                                             "icon":  "$(play-circle)"
-                                         },
-                                         {
-                                             "command":  "acid-bjorn.service.start",
-                                             "title":  "Acid Bjorn: Service Start"
-                                         },
-                                         {
-                                             "command":  "acid-bjorn.service.stop",
-                                             "title":  "Acid Bjorn: Service Stop"
-                                         },
-                                         {
-                                             "command":  "acid-bjorn.service.restart",
-                                             "title":  "Acid Bjorn: Service Restart"
-                                         },
-                                         {
-                                             "command":  "acid-bjorn.service.status",
-                                             "title":  "Acid Bjorn: Service Status"
-                                         },
-                                         {
-                                             "command":  "acid-bjorn.service.enable",
-                                             "title":  "Acid Bjorn: Service Enable"
-                                         },
-                                         {
-                                             "command":  "acid-bjorn.service.disable",
-                                             "title":  "Acid Bjorn: Service Disable"
-                                         },
-                                         {
-                                             "command":  "acid-bjorn.service.tail",
-                                             "title":  "Acid Bjorn: Tail Service Logs"
-                                         },
-                                         {
-                                             "command":  "acid-bjorn.openConflictsView",
-                                             "title":  "Acid Bjorn: Open Conflicts"
-                                         },
-                                         {
-                                             "command":  "acid-bjorn.renameResource",
-                                             "title":  "Acid Bjorn: Rename"
-                                         },
-                                         {
-                                             "command":  "acid-bjorn.deleteResource",
-                                             "title":  "Acid Bjorn: Delete"
-                                         },
-                                         {
-                                             "command":  "acid-bjorn.newFile",
-                                             "title":  "Acid Bjorn: New File"
-                                         },
-                                         {
-                                             "command":  "acid-bjorn.newFolder",
-                                             "title":  "Acid Bjorn: New Folder"
-                                         },
-                                         {
-                                             "command":  "acid-bjorn.importIntoFolder",
-                                             "title":  "Acid Bjorn: Import Here"
-                                         },
-                                         {
-                                             "command":  "acid-bjorn.openView",
-                                             "title":  "Acid Bjorn: Open View",
-                                             "icon":  "$(sidebar-left)"
-                                         }
-                                     ],
-                        "configuration":  {
-                                              "title":  "Acid Bjorn",
-                                              "properties":  {
-                                                                 "acidBjorn.remoteIp":  {
-                                                                                            "type":  "string",
-                                                                                            "default":  "192.168.1.15",
-                                                                                            "description":  "IP address of the Raspberry Pi"
-                                                                                        },
-                                                                 "acidBjorn.username":  {
-                                                                                            "type":  "string",
-                                                                                            "default":  "bjorn",
-                                                                                            "description":  "SSH username"
-                                                                                        },
-                                                                 "acidBjorn.password":  {
-                                                                                            "type":  "string",
-                                                                                            "default":  "bjorn",
-                                                                                            "description":  "SSH password"
-                                                                                        },
-                                                                 "acidBjorn.remotePath":  {
-                                                                                              "type":  "string",
-                                                                                              "default":  "/home/bjorn/Bjorn",
-                                                                                              "description":  "Remote path on the Raspberry Pi"
-                                                                                          },
-                                                                 "acidBjorn.localPath":  {
-                                                                                             "type":  "string",
-                                                                                             "default":  "",
-                                                                                             "description":  "Local path to sync (leave empty to use current workspace root)"
-                                                                                         },
-                                                                 "acidBjorn.privateKeyPath":  {
-                                                                                                  "type":  "string",
-                                                                                                  "default":  "~/.ssh/id_rsa",
-                                                                                                  "description":  "Path to your private SSH key (e.g., C:/Users/Name/.ssh/id_rsa)"
-                                                                                              },
-                                                                 "acidBjorn.autoSync":  {
-                                                                                            "type":  "boolean",
-                                                                                            "default":  true,
-                                                                                            "description":  "Enable automatic synchronization on file change"
-                                                                                        },
-                                                                 "acidBjorn.enabled":  {
-                                                                                           "type":  "boolean",
-                                                                                           "default":  false,
-                                                                                           "description":  "Master switch to enable or disable Acid Bjorn synchronization"
-                                                                                       },
-                                                                 "acidBjorn.exclusions":  {
-                                                                                              "type":  "array",
-                                                                                              "items":  {
-                                                                                                            "type":  "string"
-                                                                                                        },
-                                                                                              "default":  [
-                                                                                                              ".git",
-                                                                                                              "node_modules",
-                                                                                                              ".DS_Store",
-                                                                                                              "out",
-                                                                                                              "*.vsix",
-                                                                                                              "__pycache__",
-                                                                                                              "*.pyc",
-                                                                                                              "*.db",
-                                                                                                              "*.db-shm",
-                                                                                                              "*.db-wal",
-                                                                                                              ".lgd-nfy0"
-                                                                                                          ],
-                                                                                              "description":  "List of files or directories to exclude from synchronization"
-                                                                                          },
-                                                                 "acidBjorn.port":  {
-                                                                                       "type":  "number",
-                                                                                       "default":  22,
-                                                                                       "description":  "SSH port"
-                                                                                   },
-                                                                 "acidBjorn.includes":  {
-                                                                                           "type":  "array",
-                                                                                           "items":  {
-                                                                                                         "type":  "string"
-                                                                                                     },
-                                                                                           "default":  [
-                                                                                                           "**/*"
-                                                                                                       ],
-                                                                                           "description":  "Selective sync include globs"
-                                                                                       },
-                                                                 "acidBjorn.syncMode":  {
-                                                                                           "type":  "string",
-                                                                                           "enum":  [
-                                                                                                        "mirror",
-                                                                                                        "selective"
-                                                                                                    ],
-                                                                                           "default":  "mirror",
-                                                                                           "description":  "Mirror all files or only includes"
-                                                                                       },
-                                                                 "acidBjorn.maxConcurrency":  {
-                                                                                                 "type":  "number",
-                                                                                                 "default":  3,
-                                                                                                 "description":  "Maximum parallel transfers"
-                                                                                             },
-                                                                 "acidBjorn.maxRetries":  {
-                                                                                            "type":  "number",
-                                                                                            "default":  3,
-                                                                                            "description":  "Retries per transfer job"
-                                                                                        },
-                                                                 "acidBjorn.connectTimeoutMs":  {
-                                                                                                  "type":  "number",
-                                                                                                  "default":  20000,
-                                                                                                  "description":  "SSH connect timeout in milliseconds"
-                                                                                              },
-                                                                 "acidBjorn.operationTimeoutMs":  {
-                                                                                                    "type":  "number",
-                                                                                                    "default":  30000,
-                                                                                                    "description":  "SFTP operation timeout in milliseconds"
-                                                                                                },
-                                                                 "acidBjorn.pollingIntervalSec":  {
-                                                                                                     "type":  "number",
-                                                                                                     "default":  10,
-                                                                                                     "description":  "Polling interval for remote fallback mode"
-                                                                                                 },
-                                                                 "acidBjorn.pythonPath":  {
-                                                                                             "type":  "string",
-                                                                                             "default":  "/usr/bin/python3",
-                                                                                             "description":  "Remote python interpreter path"
-                                                                                         },
-                                                                 "acidBjorn.sudoByDefault":  {
-                                                                                                 "type":  "boolean",
-                                                                                                 "default":  false,
-                                                                                                 "description":  "Use sudo by default in remote tools"
-                                                                                             },
-                                                                 "acidBjorn.services":  {
-                                                                                            "type":  "array",
-                                                                                            "items":  {
-                                                                                                          "type":  "string"
-                                                                                                      },
-                                                                                            "default":  [
-                                                                                                        ],
-                                                                                            "description":  "List of systemd services available in commands"
-                                                                                          }
-                                                             }
-                                          },
-                        "menus":  {
-                                      "view/item/context":  [
-                                                                {
-                                                                    "group":  "inline@1",
-                                                                    "command":  "acid-bjorn.syncResource",
-                                                                    "when":  "view == acidBjornExplorer \u0026\u0026 viewItem =~ /bjornFile|bjornFolder/"
-                                                                },
-                                                                {
-                                                                    "group":  "inline@2",
-                                                                    "command":  "acid-bjorn.downloadResource",
-                                                                    "when":  "view == acidBjornExplorer \u0026\u0026 viewItem =~ /bjornFile|bjornFolder/"
-                                                                },
-                                                                {
-                                                                    "group":  "navigation@1",
-                                                                    "command":  "acid-bjorn.addInclude",
-                                                                    "when":  "view == acidBjornExplorer \u0026\u0026 viewItem =~ /bjornFile|bjornFolder/"
-                                                                },
-                                                                {
-                                                                    "group":  "navigation@2",
-                                                                    "command":  "acid-bjorn.addExclusion",
-                                                                    "when":  "view == acidBjornExplorer \u0026\u0026 viewItem =~ /bjornFile|bjornFolder/"
-                                                                },
-                                                                {
-                                                                    "group":  "navigation@3",
-                                                                    "command":  "acid-bjorn.renameResource",
-                                                                    "when":  "view == acidBjornExplorer \u0026\u0026 viewItem =~ /bjornFile|bjornFolder/"
-                                                                },
-                                                                {
-                                                                    "group":  "navigation@4",
-                                                                    "command":  "acid-bjorn.deleteResource",
-                                                                    "when":  "view == acidBjornExplorer \u0026\u0026 viewItem =~ /bjornFile|bjornFolder/"
-                                                                },
-                                                                {
-                                                                    "group":  "navigation@5",
-                                                                    "command":  "acid-bjorn.newFile",
-                                                                    "when":  "view == acidBjornExplorer \u0026\u0026 viewItem =~ /bjornFolder|bjornWorkspaceRoot/"
-                                                                },
-                                                                {
-                                                                    "group":  "navigation@6",
-                                                                    "command":  "acid-bjorn.newFolder",
-                                                                    "when":  "view == acidBjornExplorer \u0026\u0026 viewItem =~ /bjornFolder|bjornWorkspaceRoot/"
-                                                                },
-                                                                {
-                                                                    "group":  "navigation@7",
-                                                                    "command":  "acid-bjorn.importIntoFolder",
-                                                                    "when":  "view == acidBjornExplorer \u0026\u0026 viewItem =~ /bjornFolder|bjornWorkspaceRoot/"
-                                                                },
-                                                                {
-                                                                    "group":  "inline@1",
-                                                                    "command":  "acid-bjorn.runPythonRemote",
-                                                                    "when":  "view == acidBjornExplorer \u0026\u0026 viewItem == bjornToolRunPython"
-                                                                },
-                                                                {
-                                                                    "group":  "inline@2",
-                                                                    "command":  "acid-bjorn.service.status",
-                                                                    "when":  "view == acidBjornExplorer \u0026\u0026 viewItem == bjornToolServiceStatus"
-                                                                },
-                                                                {
-                                                                    "group":  "inline@3",
-                                                                    "command":  "acid-bjorn.service.tail",
-                                                                    "when":  "view == acidBjornExplorer \u0026\u0026 viewItem == bjornToolServiceTail"
-                                                                }
-                                                            ],
-                                      "view/title":  [
-                                                         {
-                                                             "group":  "navigation",
-                                                             "command":  "acid-bjorn.toggleEnabled",
-                                                             "when":  "view == acidBjornExplorer"
-                                                         },
-                                                         {
-                                                             "group":  "navigation",
-                                                             "command":  "acid-bjorn.syncNow",
-                                                             "when":  "view == acidBjornExplorer"
-                                                         },
-                                                         {
-                                                             "group":  "navigation",
-                                                             "command":  "acid-bjorn.toggleConnection",
-                                                             "when":  "view == acidBjornExplorer"
-                                                         },
-                                                         {
-                                                             "group":  "navigation",
-                                                             "command":  "acid-bjorn.syncPull",
-                                                             "when":  "view == acidBjornExplorer"
-                                                         },
-                                                         {
-                                                             "group":  "navigation",
-                                                             "command":  "acid-bjorn.openSettings",
-                                                             "when":  "view == acidBjornExplorer"
-                                                         }
-                                                     ],
-                                      "explorer/context":  [
-                                                               {
-                                                                   "command":  "acid-bjorn.syncResource",
-                                                                   "group":  "navigation@1"
-                                                               },
-                                                               {
-                                                                   "command":  "acid-bjorn.downloadResource",
-                                                                   "group":  "navigation@2"
-                                                               },
-                                                               {
-                                                                   "command":  "acid-bjorn.addInclude",
-                                                                   "group":  "navigation@3"
-                                                               },
-                                                               {
-                                                                   "command":  "acid-bjorn.addExclusion",
-                                                                   "group":  "navigation@4"
-                                                               },
-                                                               {
-                                                                   "command":  "acid-bjorn.runPythonRemote",
-                                                                   "group":  "navigation@5"
-                                                               }
-                                                           ]
-                                  },
-                        "viewsContainers":  {
-                                                "activitybar":  [
-                                                                    {
-                                                                        "id":  "acid-bjorn",
-                                                                        "title":  "Acid Bjorn",
-                                                                        "icon":  "img/bjorn.svg"
-                                                                    }
-                                                                ]
-                                            },
-                        "views":  {
-                                      "acid-bjorn":  [
-                                                         {
-                                                             "id":  "acidBjornExplorer",
-                                                             "name":  "Sync Controls"
-                                                         }
-                                                     ]
-                                  }
+                "acidBjorn.username": {
+                    "type": "string",
+                    "default": "bjorn",
+                    "description": "SSH username"
+                },
+                "acidBjorn.password": {
+                    "type": "string",
+                    "default": "bjorn",
+                    "description": "SSH password"
+                },
+                "acidBjorn.remotePath": {
+                    "type": "string",
+                    "default": "/home/bjorn/Bjorn",
+                    "description": "Remote path on the Raspberry Pi"
+                },
+                "acidBjorn.localPath": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Local path to sync (leave empty to use current workspace root)"
+                },
+                "acidBjorn.privateKeyPath": {
+                    "type": "string",
+                    "default": "~/.ssh/id_rsa",
+                    "description": "Path to your private SSH key (e.g., C:/Users/Name/.ssh/id_rsa)"
+                },
+                "acidBjorn.autoSync": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enable automatic synchronization on file change"
+                },
+                "acidBjorn.enabled": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Master switch to enable or disable Acid Bjorn synchronization"
+                },
+                "acidBjorn.exclusions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
                     },
-    "scripts":  {
-                    "vscode:prepublish":  "npm run compile",
-                    "compile":  "tsc -p ./",
-                    "watch":  "tsc -watch -p ./"
+                    "default": [
+                        ".git",
+                        "node_modules",
+                        ".DS_Store",
+                        "out",
+                        "*.vsix",
+                        "__pycache__",
+                        "*.pyc",
+                        "*.db",
+                        "*.db-shm",
+                        "*.db-wal",
+                        ".lgd-nfy0"
+                    ],
+                    "description": "List of files or directories to exclude from synchronization"
                 },
-    "dependencies":  {
-                         "ssh2":  "^1.11.0"
-                     },
-    "devDependencies":  {
-                            "@types/node":  "^18.11.18",
-                            "@types/ssh2":  "^1.11.7",
-                            "@types/vscode":  "^1.75.0",
-                            "typescript":  "^4.9.5"
-                        }
+                "acidBjorn.port": {
+                    "type": "number",
+                    "default": 22,
+                    "description": "SSH port"
+                },
+                "acidBjorn.includes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "**/*"
+                    ],
+                    "description": "Selective sync include globs"
+                },
+                "acidBjorn.syncMode": {
+                    "type": "string",
+                    "enum": [
+                        "mirror",
+                        "selective"
+                    ],
+                    "default": "mirror",
+                    "description": "Mirror all files or only includes"
+                },
+                "acidBjorn.maxConcurrency": {
+                    "type": "number",
+                    "default": 3,
+                    "minimum": 1,
+                    "maximum": 10,
+                    "description": "Maximum parallel transfers"
+                },
+                "acidBjorn.maxRetries": {
+                    "type": "number",
+                    "default": 3,
+                    "minimum": 0,
+                    "maximum": 10,
+                    "description": "Retries per transfer job"
+                },
+                "acidBjorn.connectTimeoutMs": {
+                    "type": "number",
+                    "default": 20000,
+                    "minimum": 1000,
+                    "description": "SSH connect timeout in milliseconds"
+                },
+                "acidBjorn.operationTimeoutMs": {
+                    "type": "number",
+                    "default": 30000,
+                    "minimum": 1000,
+                    "description": "SFTP operation timeout in milliseconds"
+                },
+                "acidBjorn.pollingIntervalSec": {
+                    "type": "number",
+                    "default": 10,
+                    "minimum": 1,
+                    "description": "Polling interval for remote change detection (seconds)"
+                },
+                "acidBjorn.pythonPath": {
+                    "type": "string",
+                    "default": "/usr/bin/python3",
+                    "description": "Remote python interpreter path"
+                },
+                "acidBjorn.sudoByDefault": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Use sudo by default when running remote commands"
+                },
+                "acidBjorn.services": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [],
+                    "description": "List of systemd services available in commands"
+                },
+                "acidBjorn.logLevel": {
+                    "type": "string",
+                    "enum": [
+                        "debug",
+                        "info",
+                        "warn",
+                        "error"
+                    ],
+                    "default": "info",
+                    "description": "Log verbosity level"
+                },
+                "acidBjorn.bjornServiceName": {
+                    "type": "string",
+                    "default": "bjorn",
+                    "description": "Name of the Bjorn systemd service for quick restart"
+                }
+            }
+        },
+        "menus": {
+            "view/item/context": [
+                {
+                    "group": "inline@1",
+                    "command": "acid-bjorn.syncResource",
+                    "when": "view == acidBjornExplorer && viewItem =~ /bjornFile|bjornFolder/"
+                },
+                {
+                    "group": "inline@2",
+                    "command": "acid-bjorn.downloadResource",
+                    "when": "view == acidBjornExplorer && viewItem =~ /bjornFile|bjornFolder/"
+                },
+                {
+                    "group": "inline@3",
+                    "command": "acid-bjorn.diffWithRemote",
+                    "when": "view == acidBjornExplorer && viewItem == bjornFile"
+                },
+                {
+                    "group": "navigation@1",
+                    "command": "acid-bjorn.diffWithRemote",
+                    "when": "view == acidBjornExplorer && viewItem == bjornFile"
+                },
+                {
+                    "group": "navigation@2",
+                    "command": "acid-bjorn.addInclude",
+                    "when": "view == acidBjornExplorer && viewItem =~ /bjornFile|bjornFolder/"
+                },
+                {
+                    "group": "navigation@3",
+                    "command": "acid-bjorn.addExclusion",
+                    "when": "view == acidBjornExplorer && viewItem =~ /bjornFile|bjornFolder/"
+                },
+                {
+                    "group": "navigation@4",
+                    "command": "acid-bjorn.renameResource",
+                    "when": "view == acidBjornExplorer && viewItem =~ /bjornFile|bjornFolder/"
+                },
+                {
+                    "group": "navigation@5",
+                    "command": "acid-bjorn.deleteResource",
+                    "when": "view == acidBjornExplorer && viewItem =~ /bjornFile|bjornFolder/"
+                },
+                {
+                    "group": "navigation@6",
+                    "command": "acid-bjorn.newFile",
+                    "when": "view == acidBjornExplorer && viewItem =~ /bjornFolder|bjornWorkspaceRoot/"
+                },
+                {
+                    "group": "navigation@7",
+                    "command": "acid-bjorn.newFolder",
+                    "when": "view == acidBjornExplorer && viewItem =~ /bjornFolder|bjornWorkspaceRoot/"
+                },
+                {
+                    "group": "navigation@8",
+                    "command": "acid-bjorn.importIntoFolder",
+                    "when": "view == acidBjornExplorer && viewItem =~ /bjornFolder|bjornWorkspaceRoot/"
+                },
+                {
+                    "group": "inline@1",
+                    "command": "acid-bjorn.runPythonRemote",
+                    "when": "view == acidBjornExplorer && viewItem == bjornToolRunPython"
+                },
+                {
+                    "group": "inline@1",
+                    "command": "acid-bjorn.openSshTerminal",
+                    "when": "view == acidBjornExplorer && viewItem == bjornToolSshTerminal"
+                },
+                {
+                    "group": "inline@1",
+                    "command": "acid-bjorn.restartBjorn",
+                    "when": "view == acidBjornExplorer && viewItem == bjornToolRestartService"
+                },
+                {
+                    "group": "inline@1",
+                    "command": "acid-bjorn.rebootPi",
+                    "when": "view == acidBjornExplorer && viewItem == bjornToolReboot"
+                },
+                {
+                    "group": "inline@2",
+                    "command": "acid-bjorn.service.status",
+                    "when": "view == acidBjornExplorer && viewItem == bjornToolServiceStatus"
+                },
+                {
+                    "group": "inline@3",
+                    "command": "acid-bjorn.service.tail",
+                    "when": "view == acidBjornExplorer && viewItem == bjornToolServiceTail"
+                },
+                {
+                    "group": "inline@1",
+                    "command": "acid-bjorn.openLiveLogs",
+                    "when": "view == acidBjornExplorer && viewItem == bjornToolLiveLogs"
+                }
+            ],
+            "view/title": [
+                {
+                    "group": "navigation@1",
+                    "command": "acid-bjorn.toggleEnabled",
+                    "when": "view == acidBjornExplorer"
+                },
+                {
+                    "group": "navigation@2",
+                    "command": "acid-bjorn.toggleConnection.connected",
+                    "when": "view == acidBjornExplorer && acidBjorn.state == 'connected'"
+                },
+                {
+                    "group": "navigation@2",
+                    "command": "acid-bjorn.toggleConnection.syncing",
+                    "when": "view == acidBjornExplorer && acidBjorn.state == 'syncing'"
+                },
+                {
+                    "group": "navigation@2",
+                    "command": "acid-bjorn.toggleConnection.disconnected",
+                    "when": "view == acidBjornExplorer && acidBjorn.state == 'disconnected'"
+                },
+                {
+                    "group": "navigation@2",
+                    "command": "acid-bjorn.toggleConnection.error",
+                    "when": "view == acidBjornExplorer && acidBjorn.state == 'error'"
+                },
+                {
+                    "group": "navigation@2",
+                    "command": "acid-bjorn.toggleConnection",
+                    "when": "view == acidBjornExplorer && acidBjorn.state == 'connecting'"
+                },
+                {
+                    "group": "navigation@3",
+                    "command": "acid-bjorn.syncNow",
+                    "when": "view == acidBjornExplorer"
+                },
+                {
+                    "group": "navigation@4",
+                    "command": "acid-bjorn.syncPull",
+                    "when": "view == acidBjornExplorer"
+                },
+                {
+                    "group": "navigation@5",
+                    "command": "acid-bjorn.openSettings",
+                    "when": "view == acidBjornExplorer"
+                }
+            ],
+            "explorer/context": [
+                {
+                    "command": "acid-bjorn.syncResource",
+                    "group": "navigation@1"
+                },
+                {
+                    "command": "acid-bjorn.downloadResource",
+                    "group": "navigation@2"
+                },
+                {
+                    "command": "acid-bjorn.diffWithRemote",
+                    "group": "navigation@3"
+                },
+                {
+                    "command": "acid-bjorn.addInclude",
+                    "group": "navigation@4"
+                },
+                {
+                    "command": "acid-bjorn.addExclusion",
+                    "group": "navigation@5"
+                },
+                {
+                    "command": "acid-bjorn.runPythonRemote",
+                    "group": "navigation@6"
+                }
+            ],
+            "editor/title": [
+                {
+                    "command": "acid-bjorn.diffWithRemote",
+                    "group": "navigation",
+                    "when": "acidBjorn.enabled && acidBjorn.connected"
+                }
+            ]
+        },
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "acid-bjorn",
+                    "title": "Acid Bjorn",
+                    "icon": "img/bjorn.svg"
+                }
+            ]
+        },
+        "views": {
+            "acid-bjorn": [
+                {
+                    "id": "acidBjornExplorer",
+                    "name": "Sync Controls"
+                }
+            ]
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./"
+    },
+    "dependencies": {
+        "ssh2": "^1.11.0"
+    },
+    "bundledDependencies": [
+        "ssh2",
+        "asn1",
+        "bcrypt-pbkdf",
+        "buildcheck",
+        "cpu-features",
+        "nan",
+        "safer-buffer",
+        "tweetnacl"
+    ],
+    "devDependencies": {
+        "@types/node": "^18.11.18",
+        "@types/ssh2": "^1.11.7",
+        "@types/vscode": "^1.75.0",
+        "typescript": "^4.9.5"
+    }
 }

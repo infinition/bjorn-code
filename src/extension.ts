@@ -6,6 +6,8 @@ import { Logger } from './core/Logger';
 import { RemoteRunner } from './remoteRunner';
 import { getWorkspaceTarget } from './core/Config';
 import { BjornFileDecorationProvider } from './fileDecorations';
+import { ConnectionManager } from './core/ConnectionManager';
+import { LiveLogsPanel } from './liveLogsPanel';
 
 let syncEngine: SyncEngine;
 let statusBarItem: vscode.StatusBarItem;
@@ -97,7 +99,13 @@ export function activate(context: vscode.ExtensionContext): void {
     const outputChannel = vscode.window.createOutputChannel('Acid Bjorn');
     const logger = new Logger(outputChannel);
 
-    const workspaceRoot = getWorkspaceTarget()?.workspaceRoot;
+    // Apply log level from settings
+    const initialTarget = getWorkspaceTarget();
+    if (initialTarget) {
+        logger.setLevel(initialTarget.settings.logLevel);
+    }
+
+    const workspaceRoot = initialTarget?.workspaceRoot;
 
     treeDataProvider = new BjornTreeDataProvider(workspaceRoot);
     const treeView = vscode.window.createTreeView('acidBjornExplorer', {
@@ -122,15 +130,26 @@ export function activate(context: vscode.ExtensionContext): void {
         const enabled = vscode.workspace.getConfiguration('acidBjorn').get<boolean>('enabled', false);
         void vscode.commands.executeCommand('setContext', 'acidBjorn.enabled', enabled);
         void vscode.commands.executeCommand('setContext', 'acidBjorn.connected', syncEngine.connectionState === 'CONNECTED' || syncEngine.connectionState === 'SYNCING' || syncEngine.connectionState === 'CONNECTING');
+        void vscode.commands.executeCommand('setContext', 'acidBjorn.state', syncEngine.connectionState.toLowerCase());
         const ui = statusConfig(syncEngine.connectionState, enabled);
         statusBarItem.text = ui.text;
         statusBarItem.color = ui.color;
         statusBarItem.tooltip = ui.tooltip;
+
+        // Update remote file browser when connected
+        const target = getWorkspaceTarget();
+        if (target && (syncEngine.connectionState === 'CONNECTED' || syncEngine.connectionState === 'SYNCING')) {
+            treeDataProvider.setRemoteLister(
+                (dir) => syncEngine.listRemoteDirectory(dir),
+                target.settings.remotePath
+            );
+        }
     };
 
     refreshStatusBar();
     context.subscriptions.push(statusBarItem);
 
+    // ── Status Actions ──
     const statusActions = vscode.commands.registerCommand('acid-bjorn.statusActions', async () => {
         const enabled = vscode.workspace.getConfiguration('acidBjorn').get<boolean>('enabled', false);
 
@@ -150,10 +169,16 @@ export function activate(context: vscode.ExtensionContext): void {
             [
                 'Connect/Retry',
                 'Disconnect',
-                'Push',
+                'Push (incremental)',
+                'Push (full scan)',
                 'Pull',
+                'Sync Summary',
+                'SSH Terminal',
+                'Restart Bjorn',
+                'Reboot Pi',
                 'Run Python',
                 'Service Status',
+                'Live Logs',
                 'Open Logs',
                 'Disable Acid Bjorn'
             ],
@@ -167,11 +192,63 @@ export function activate(context: vscode.ExtensionContext): void {
             case 'Disconnect':
                 syncEngine.disconnect();
                 break;
-            case 'Push':
+            case 'Push (incremental)':
                 await syncEngine.syncAll();
+                break;
+            case 'Push (full scan)':
+                await syncEngine.fullSync();
                 break;
             case 'Pull':
                 await syncEngine.syncPull();
+                break;
+            case 'Sync Summary': {
+                const summary = syncEngine.getSyncSummary();
+                const total = summary.added.length + summary.modified.length + summary.deleted.length;
+                if (total === 0) {
+                    vscode.window.showInformationMessage('Acid Bjorn: No pending changes.');
+                } else {
+                    const lines = [];
+                    if (summary.added.length > 0) {
+                        lines.push(`+ ${summary.added.length} added`);
+                    }
+                    if (summary.modified.length > 0) {
+                        lines.push(`~ ${summary.modified.length} modified`);
+                    }
+                    if (summary.deleted.length > 0) {
+                        lines.push(`- ${summary.deleted.length} deleted`);
+                    }
+                    const choice = await vscode.window.showInformationMessage(
+                        `Acid Bjorn: ${lines.join(', ')} (${total} total)`,
+                        'Push Now',
+                        'Details'
+                    );
+                    if (choice === 'Push Now') {
+                        await syncEngine.syncAll();
+                    } else if (choice === 'Details') {
+                        outputChannel.clear();
+                        outputChannel.appendLine('=== Sync Summary ===');
+                        for (const f of summary.added) {
+                            outputChannel.appendLine(`  + ${f}`);
+                        }
+                        for (const f of summary.modified) {
+                            outputChannel.appendLine(`  ~ ${f}`);
+                        }
+                        for (const f of summary.deleted) {
+                            outputChannel.appendLine(`  - ${f}`);
+                        }
+                        outputChannel.show(true);
+                    }
+                }
+                break;
+            }
+            case 'SSH Terminal':
+                await remoteRunner.openSshTerminal();
+                break;
+            case 'Restart Bjorn':
+                await remoteRunner.restartBjornService();
+                break;
+            case 'Reboot Pi':
+                await remoteRunner.rebootPi();
                 break;
             case 'Run Python':
                 await remoteRunner.runPython();
@@ -179,6 +256,11 @@ export function activate(context: vscode.ExtensionContext): void {
             case 'Service Status':
                 await remoteRunner.runServiceAction('status');
                 break;
+            case 'Live Logs': {
+                const panel = LiveLogsPanel.createOrShow(logger);
+                await panel.startStream();
+                break;
+            }
             case 'Open Logs':
                 outputChannel.show(true);
                 break;
@@ -190,6 +272,7 @@ export function activate(context: vscode.ExtensionContext): void {
         }
     });
 
+    // ── Basic commands ──
     const toggleEnabled = vscode.commands.registerCommand('acid-bjorn.toggleEnabled', async () => {
         const cfg = vscode.workspace.getConfiguration('acidBjorn');
         const current = cfg.get<boolean>('enabled', false);
@@ -202,6 +285,11 @@ export function activate(context: vscode.ExtensionContext): void {
         await syncEngine.syncAll();
     });
 
+    const fullSyncCommand = vscode.commands.registerCommand('acid-bjorn.fullSync', async () => {
+        outputChannel.appendLine('[Command] Full Push to Remote');
+        await syncEngine.fullSync();
+    });
+
     const connectCommand = vscode.commands.registerCommand('acid-bjorn.connect', async () => {
         await syncEngine.connect();
         refreshStatusBar();
@@ -212,14 +300,20 @@ export function activate(context: vscode.ExtensionContext): void {
         refreshStatusBar();
     });
 
-    const toggleConnectionCommand = vscode.commands.registerCommand('acid-bjorn.toggleConnection', async () => {
+    const doToggleConnection = async () => {
         if (syncEngine.connectionState === 'CONNECTED' || syncEngine.connectionState === 'SYNCING' || syncEngine.connectionState === 'CONNECTING') {
             syncEngine.disconnect();
         } else {
             await syncEngine.connect();
         }
         refreshStatusBar();
-    });
+    };
+
+    const toggleConnectionCommand = vscode.commands.registerCommand('acid-bjorn.toggleConnection', doToggleConnection);
+    const toggleConnectionConnected = vscode.commands.registerCommand('acid-bjorn.toggleConnection.connected', doToggleConnection);
+    const toggleConnectionSyncing = vscode.commands.registerCommand('acid-bjorn.toggleConnection.syncing', doToggleConnection);
+    const toggleConnectionDisconnected = vscode.commands.registerCommand('acid-bjorn.toggleConnection.disconnected', doToggleConnection);
+    const toggleConnectionError = vscode.commands.registerCommand('acid-bjorn.toggleConnection.error', doToggleConnection);
 
     const openViewCommand = vscode.commands.registerCommand('acid-bjorn.openView', async () => {
         await vscode.commands.executeCommand('workbench.view.extension.acid-bjorn');
@@ -265,6 +359,18 @@ export function activate(context: vscode.ExtensionContext): void {
         await syncEngine.forcePullUri(resource);
     });
 
+    const diffWithRemoteCommand = vscode.commands.registerCommand('acid-bjorn.diffWithRemote', async (arg: unknown) => {
+        const resource = resolveResourceArg(arg);
+        if (!resource) {
+            const editor = vscode.window.activeTextEditor;
+            if (editor) {
+                await syncEngine.diffWithRemote(editor.document.uri);
+            }
+            return;
+        }
+        await syncEngine.diffWithRemote(resource);
+    });
+
     const addIncludeCommand = vscode.commands.registerCommand('acid-bjorn.addInclude', async (arg: unknown) => {
         const resource = resolveResourceArg(arg);
         if (!resource) {
@@ -299,6 +405,7 @@ export function activate(context: vscode.ExtensionContext): void {
         await remoteRunner.runPython(resource);
     });
 
+    // ── File management ──
     const renameResourceCommand = vscode.commands.registerCommand('acid-bjorn.renameResource', async (arg: unknown) => {
         const resource = resolveResourceArg(arg);
         if (!resource) {
@@ -383,6 +490,7 @@ export function activate(context: vscode.ExtensionContext): void {
         }
     });
 
+    // ── Service commands ──
     const serviceStart = vscode.commands.registerCommand('acid-bjorn.service.start', async () => remoteRunner.runServiceAction('start'));
     const serviceStop = vscode.commands.registerCommand('acid-bjorn.service.stop', async () => remoteRunner.runServiceAction('stop'));
     const serviceRestart = vscode.commands.registerCommand('acid-bjorn.service.restart', async () => remoteRunner.runServiceAction('restart'));
@@ -390,17 +498,55 @@ export function activate(context: vscode.ExtensionContext): void {
     const serviceEnable = vscode.commands.registerCommand('acid-bjorn.service.enable', async () => remoteRunner.runServiceAction('enable'));
     const serviceDisable = vscode.commands.registerCommand('acid-bjorn.service.disable', async () => remoteRunner.runServiceAction('disable'));
     const serviceTail = vscode.commands.registerCommand('acid-bjorn.service.tail', async () => remoteRunner.runServiceAction('tail'));
+
+    // ── New feature commands ──
+    const restartBjornCommand = vscode.commands.registerCommand('acid-bjorn.restartBjorn', () => remoteRunner.restartBjornService());
+    const rebootPiCommand = vscode.commands.registerCommand('acid-bjorn.rebootPi', () => remoteRunner.rebootPi());
+    const openSshTerminalCommand = vscode.commands.registerCommand('acid-bjorn.openSshTerminal', () => remoteRunner.openSshTerminal());
+
+    const openLiveLogsCommand = vscode.commands.registerCommand('acid-bjorn.openLiveLogs', async () => {
+        const panel = LiveLogsPanel.createOrShow(logger);
+        await panel.startStream();
+    });
+
+    const syncSummaryCommand = vscode.commands.registerCommand('acid-bjorn.syncSummary', async () => {
+        const summary = syncEngine.getSyncSummary();
+        const total = summary.added.length + summary.modified.length + summary.deleted.length;
+        if (total === 0) {
+            vscode.window.showInformationMessage('Acid Bjorn: No pending changes.');
+        } else {
+            outputChannel.clear();
+            outputChannel.appendLine('=== Sync Summary ===');
+            for (const f of summary.added) {
+                outputChannel.appendLine(`  + ${f}`);
+            }
+            for (const f of summary.modified) {
+                outputChannel.appendLine(`  ~ ${f}`);
+            }
+            for (const f of summary.deleted) {
+                outputChannel.appendLine(`  - ${f}`);
+            }
+            outputChannel.show(true);
+        }
+    });
+
     const openConflictsView = vscode.commands.registerCommand('acid-bjorn.openConflictsView', async () => {
         await vscode.commands.executeCommand('workbench.view.extension.acid-bjorn');
     });
 
+    // ── Register all subscriptions ──
     context.subscriptions.push(
         statusActions,
         toggleEnabled,
         syncNowCommand,
+        fullSyncCommand,
         connectCommand,
         disconnectCommand,
         toggleConnectionCommand,
+        toggleConnectionConnected,
+        toggleConnectionSyncing,
+        toggleConnectionDisconnected,
+        toggleConnectionError,
         openViewCommand,
         syncPullCommand,
         openSettingsCommand,
@@ -408,6 +554,7 @@ export function activate(context: vscode.ExtensionContext): void {
         toggleAutoSync,
         syncResourceCommand,
         downloadResourceCommand,
+        diffWithRemoteCommand,
         renameResourceCommand,
         deleteResourceCommand,
         newFileCommand,
@@ -423,10 +570,21 @@ export function activate(context: vscode.ExtensionContext): void {
         serviceEnable,
         serviceDisable,
         serviceTail,
+        restartBjornCommand,
+        rebootPiCommand,
+        openSshTerminalCommand,
+        openLiveLogsCommand,
+        syncSummaryCommand,
         openConflictsView
     );
 
-    const watcher = vscode.workspace.createFileSystemWatcher('**/*');
+    // ── File system watchers ──
+    const workspaceRootForWatcher = getWorkspaceTarget()?.workspaceRoot;
+    const watchPattern = workspaceRootForWatcher
+        ? new vscode.RelativePattern(workspaceRootForWatcher, '**/*')
+        : '**/*';
+
+    const watcher = vscode.workspace.createFileSystemWatcher(watchPattern);
     watcher.onDidChange((uri) => {
         if (syncEngine.shouldIgnoreWatcherEvent(uri.fsPath)) {
             return;
@@ -480,6 +638,13 @@ export function activate(context: vscode.ExtensionContext): void {
             treeDataProvider.updateWorkspaceRoot(getWorkspaceTarget()?.workspaceRoot);
         }
 
+        if (e.affectsConfiguration('acidBjorn.logLevel')) {
+            const target = getWorkspaceTarget();
+            if (target) {
+                logger.setLevel(target.settings.logLevel);
+            }
+        }
+
         if (
             e.affectsConfiguration('acidBjorn.enabled') ||
             e.affectsConfiguration('acidBjorn.autoSync') ||
@@ -491,11 +656,40 @@ export function activate(context: vscode.ExtensionContext): void {
 
     const engineStateListener = syncEngine.onStateChanged(() => refreshStatusBar());
 
-    context.subscriptions.push(watcher, dirtyListener, saveListener, configListener, engineStateListener, syncEngine);
+    const dropImportListener = treeDataProvider.onFilesImported(async (filePaths) => {
+        const cfg = vscode.workspace.getConfiguration('acidBjorn');
+        if (!cfg.get<boolean>('enabled', false)) {
+            return;
+        }
+
+        await vscode.window.withProgress(
+            {
+                location: vscode.ProgressLocation.Notification,
+                title: `Acid Bjorn: Importing ${filePaths.length} file${filePaths.length > 1 ? 's' : ''}`,
+                cancellable: false
+            },
+            async (progress) => {
+                let done = 0;
+                for (const filePath of filePaths) {
+                    done++;
+                    progress.report({
+                        message: `${done}/${filePaths.length}: ${path.basename(filePath)}`,
+                        increment: (1 / filePaths.length) * 100
+                    });
+                    syncEngine.scheduleSyncFile(filePath, 'push');
+                }
+            }
+        );
+
+        logger.info(`Drop import: queued ${filePaths.length} file(s) for upload`);
+    });
+
+    context.subscriptions.push(watcher, dirtyListener, saveListener, configListener, engineStateListener, dropImportListener, syncEngine);
 }
 
 export function deactivate(): void {
     if (syncEngine) {
         syncEngine.dispose();
     }
+    ConnectionManager.disposeAll();
 }

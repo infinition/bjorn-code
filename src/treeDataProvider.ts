@@ -90,6 +90,38 @@ export class BjornFileItem extends vscode.TreeItem {
     }
 }
 
+export class BjornRemoteItem extends vscode.TreeItem {
+    constructor(
+        public readonly label: string,
+        public readonly remotePath: string,
+        public readonly isDirectory: boolean,
+        public readonly fileSize: number
+    ) {
+        super(
+            label,
+            isDirectory ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None
+        );
+
+        this.contextValue = isDirectory ? 'bjornRemoteFolder' : 'bjornRemoteFile';
+        this.iconPath = isDirectory ? vscode.ThemeIcon.Folder : vscode.ThemeIcon.File;
+        this.tooltip = remotePath;
+
+        if (!isDirectory && fileSize > 0) {
+            this.description = formatFileSize(fileSize);
+        }
+    }
+}
+
+function formatFileSize(bytes: number): string {
+    if (bytes < 1024) {
+        return `${bytes} B`;
+    }
+    if (bytes < 1024 * 1024) {
+        return `${(bytes / 1024).toFixed(1)} KB`;
+    }
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 class BjornInfoItem extends vscode.TreeItem {
     constructor(
         label: string,
@@ -108,21 +140,25 @@ class BjornInfoItem extends vscode.TreeItem {
 }
 
 class BjornRootItem extends vscode.TreeItem {
-    constructor(label: string, contextValue: string) {
-        super(label, vscode.TreeItemCollapsibleState.Expanded);
+    constructor(label: string, contextValue: string, collapsed = false) {
+        super(label, collapsed ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.Expanded);
         this.contextValue = contextValue;
     }
 }
 
-export type BjornTreeElement = BjornRootItem | BjornInfoItem | BjornFileItem;
+export type BjornTreeElement = BjornRootItem | BjornInfoItem | BjornFileItem | BjornRemoteItem;
 
 const BJORN_TREE_MIME = 'application/vnd.code.tree.acidBjornExplorer';
+
+type RemoteLister = (remoteDir: string) => Promise<{ name: string; isDirectory: boolean; size: number; mtime: number }[]>;
 
 export class BjornTreeDataProvider implements vscode.TreeDataProvider<BjornTreeElement>, vscode.TreeDragAndDropController<BjornTreeElement> {
     private readonly onDidChangeTreeDataEmitter = new vscode.EventEmitter<BjornTreeElement | undefined | void>();
     readonly onDidChangeTreeData: vscode.Event<BjornTreeElement | undefined | void> = this.onDidChangeTreeDataEmitter.event;
     private readonly onDidChangeStatusEmitter = new vscode.EventEmitter<vscode.Uri | vscode.Uri[] | undefined>();
     readonly onDidChangeStatus: vscode.Event<vscode.Uri | vscode.Uri[] | undefined> = this.onDidChangeStatusEmitter.event;
+    private readonly onFilesImportedEmitter = new vscode.EventEmitter<string[]>();
+    readonly onFilesImported: vscode.Event<string[]> = this.onFilesImportedEmitter.event;
     readonly dropMimeTypes: readonly string[] = [BJORN_TREE_MIME, 'text/uri-list'];
     readonly dragMimeTypes: readonly string[] = [BJORN_TREE_MIME];
 
@@ -130,14 +166,22 @@ export class BjornTreeDataProvider implements vscode.TreeDataProvider<BjornTreeE
     private connectionState: ConnectionState = 'DISCONNECTED';
     private queueSnapshot = { pending: 0, inflight: 0, total: 0 };
     private readonly conflicts: ConflictItem[] = [];
+    private remoteLister?: RemoteLister;
+    private remotePath?: string;
 
     private readonly rootConnection = new BjornRootItem('Connection', 'bjornConnectionRoot');
     private readonly rootSync = new BjornRootItem('Sync', 'bjornSyncRoot');
     private readonly rootConflicts = new BjornRootItem('Conflicts', 'bjornConflictsRoot');
     private readonly rootWorkspace = new BjornRootItem('Workspace', 'bjornWorkspaceRoot');
+    private readonly rootRemote = new BjornRootItem('Remote Files', 'bjornRemoteRoot', true);
     private readonly rootTools = new BjornRootItem('Remote Tools', 'bjornToolsRoot');
 
     constructor(private workspaceRoot: string | undefined) {}
+
+    public setRemoteLister(lister: RemoteLister, remotePath: string): void {
+        this.remoteLister = lister;
+        this.remotePath = remotePath;
+    }
 
     public refresh(): void {
         this.onDidChangeTreeDataEmitter.fire();
@@ -214,49 +258,49 @@ export class BjornTreeDataProvider implements vscode.TreeDataProvider<BjornTreeE
     }
 
     private computeDirectoryStatus(directoryPath: string): SyncStatus {
-        try {
-            if (!fs.existsSync(directoryPath)) {
-                return SyncStatus.None;
+        // Use cached child statuses instead of reading filesystem for every status change.
+        // Only check known file statuses whose paths start with this directory.
+        const prefix = directoryPath.endsWith(path.sep) ? directoryPath : `${directoryPath}${path.sep}`;
+        let hasError = false;
+        let hasPending = false;
+        let hasModified = false;
+        let hasSynced = false;
+
+        for (const [childPath, childStatus] of this.fileStatuses) {
+            if (!childPath.startsWith(prefix)) {
+                continue;
+            }
+            // Only check direct children (no sub-sub paths)
+            const remainder = childPath.slice(prefix.length);
+            if (remainder.includes(path.sep)) {
+                continue;
             }
 
-            const entries = fs.readdirSync(directoryPath);
-            let hasSynced = false;
-            let hasModified = false;
-            let hasPending = false;
-            let hasError = false;
-
-            for (const entry of entries) {
-                const childPath = this.normalizePath(path.join(directoryPath, entry));
-                const childStatus = this.fileStatuses.get(childPath) ?? SyncStatus.None;
-
-                if (childStatus === SyncStatus.Error) {
-                    hasError = true;
-                } else if (childStatus === SyncStatus.Pending) {
-                    hasPending = true;
-                } else if (childStatus === SyncStatus.Modified) {
-                    hasModified = true;
-                } else if (childStatus === SyncStatus.Synced) {
-                    hasSynced = true;
-                }
+            if (childStatus === SyncStatus.Error) {
+                hasError = true;
+            } else if (childStatus === SyncStatus.Pending) {
+                hasPending = true;
+            } else if (childStatus === SyncStatus.Modified) {
+                hasModified = true;
+            } else if (childStatus === SyncStatus.Synced) {
+                hasSynced = true;
             }
-
-            if (hasError) {
-                return SyncStatus.Error;
-            }
-            if (hasPending) {
-                return SyncStatus.Pending;
-            }
-            if (hasModified) {
-                return SyncStatus.Modified;
-            }
-            if (hasSynced) {
-                return SyncStatus.Synced;
-            }
-
-            return SyncStatus.None;
-        } catch {
-            return SyncStatus.None;
         }
+
+        if (hasError) {
+            return SyncStatus.Error;
+        }
+        if (hasPending) {
+            return SyncStatus.Pending;
+        }
+        if (hasModified) {
+            return SyncStatus.Modified;
+        }
+        if (hasSynced) {
+            return SyncStatus.Synced;
+        }
+
+        return SyncStatus.None;
     }
 
     getTreeItem(element: BjornTreeElement): vscode.TreeItem {
@@ -287,12 +331,17 @@ export class BjornTreeDataProvider implements vscode.TreeDataProvider<BjornTreeE
         if (internalTransfer) {
             const raw = await internalTransfer.asString();
             const uris = JSON.parse(raw) as string[];
+            const movedFiles: string[] = [];
             for (const uriString of uris) {
                 const src = vscode.Uri.parse(uriString).fsPath;
                 const dst = path.join(targetFolder, path.basename(src));
                 await this.movePath(src, dst);
+                movedFiles.push(...await this.collectAllFiles(dst));
             }
             this.refresh();
+            if (movedFiles.length > 0) {
+                this.onFilesImportedEmitter.fire(movedFiles);
+            }
             return;
         }
 
@@ -300,6 +349,7 @@ export class BjornTreeDataProvider implements vscode.TreeDataProvider<BjornTreeE
         if (externalTransfer) {
             const raw = await externalTransfer.asString();
             const uriStrings = raw.split(/\r?\n/).filter((line) => line && !line.startsWith('#'));
+            const importedFiles: string[] = [];
             for (const uriString of uriStrings) {
                 try {
                     const srcUri = vscode.Uri.parse(uriString);
@@ -309,11 +359,37 @@ export class BjornTreeDataProvider implements vscode.TreeDataProvider<BjornTreeE
                     const src = srcUri.fsPath;
                     const dst = path.join(targetFolder, path.basename(src));
                     await this.copyPath(src, dst);
+                    importedFiles.push(...await this.collectAllFiles(dst));
                 } catch {
                     continue;
                 }
             }
             this.refresh();
+            if (importedFiles.length > 0) {
+                this.onFilesImportedEmitter.fire(importedFiles);
+            }
+        }
+    }
+
+    private async collectAllFiles(filePath: string): Promise<string[]> {
+        try {
+            const stat = await fs.promises.stat(filePath);
+            if (!stat.isDirectory()) {
+                return [filePath];
+            }
+            const files: string[] = [];
+            const entries = await fs.promises.readdir(filePath, { withFileTypes: true });
+            for (const entry of entries) {
+                const full = path.join(filePath, entry.name);
+                if (entry.isDirectory()) {
+                    files.push(...await this.collectAllFiles(full));
+                } else {
+                    files.push(full);
+                }
+            }
+            return files;
+        } catch {
+            return [];
         }
     }
 
@@ -324,6 +400,7 @@ export class BjornTreeDataProvider implements vscode.TreeDataProvider<BjornTreeE
                 this.rootSync,
                 this.rootConflicts,
                 this.rootWorkspace,
+                this.rootRemote,
                 this.rootTools
             ]);
         }
@@ -378,11 +455,39 @@ export class BjornTreeDataProvider implements vscode.TreeDataProvider<BjornTreeE
             return this.getFsChildren(this.workspaceRoot);
         }
 
+        if (element === this.rootRemote) {
+            if (!this.remoteLister || !this.remotePath) {
+                return Promise.resolve([
+                    new BjornInfoItem('Not connected', 'debug-disconnect', 'charts.red', 'Connect first to browse remote files', 'bjornRemoteDisconnected')
+                ]);
+            }
+            return this.getRemoteChildren(this.remotePath);
+        }
+
+        if (element instanceof BjornRemoteItem && element.isDirectory) {
+            if (!this.remoteLister) {
+                return Promise.resolve([]);
+            }
+            return this.getRemoteChildren(element.remotePath);
+        }
+
         if (element === this.rootTools) {
             return Promise.resolve([
                 new BjornInfoItem('Run Python', 'play-circle', 'charts.blue', 'Run current Python file remotely', 'bjornToolRunPython', {
                     command: 'acid-bjorn.runPythonRemote',
                     title: 'Run Python'
+                }),
+                new BjornInfoItem('SSH Terminal', 'terminal', 'charts.green', 'Open SSH terminal to Pi', 'bjornToolSshTerminal', {
+                    command: 'acid-bjorn.openSshTerminal',
+                    title: 'SSH Terminal'
+                }),
+                new BjornInfoItem('Restart Bjorn', 'debug-restart', 'charts.orange', 'Restart Bjorn service', 'bjornToolRestartService', {
+                    command: 'acid-bjorn.restartBjorn',
+                    title: 'Restart Bjorn'
+                }),
+                new BjornInfoItem('Reboot Pi', 'vm-connect', 'testing.iconFailed', 'Reboot the Raspberry Pi', 'bjornToolReboot', {
+                    command: 'acid-bjorn.rebootPi',
+                    title: 'Reboot Pi'
                 }),
                 new BjornInfoItem('Service Status', 'server-process', 'charts.green', 'Check systemd service', 'bjornToolServiceStatus', {
                     command: 'acid-bjorn.service.status',
@@ -391,6 +496,10 @@ export class BjornTreeDataProvider implements vscode.TreeDataProvider<BjornTreeE
                 new BjornInfoItem('Tail Service Logs', 'list-tree', 'charts.orange', 'Tail journalctl logs', 'bjornToolServiceTail', {
                     command: 'acid-bjorn.service.tail',
                     title: 'Tail Logs'
+                }),
+                new BjornInfoItem('Live Logs Panel', 'open-preview', 'charts.blue', 'Open live logs webview', 'bjornToolLiveLogs', {
+                    command: 'acid-bjorn.openLiveLogs',
+                    title: 'Live Logs'
                 })
             ]);
         }
@@ -400,6 +509,25 @@ export class BjornTreeDataProvider implements vscode.TreeDataProvider<BjornTreeE
         }
 
         return Promise.resolve([]);
+    }
+
+    private async getRemoteChildren(remoteDir: string): Promise<BjornTreeElement[]> {
+        if (!this.remoteLister) {
+            return [];
+        }
+        try {
+            const entries = await this.remoteLister(remoteDir);
+            return entries.map((e) => {
+                const remotePath = remoteDir.endsWith('/')
+                    ? `${remoteDir}${e.name}`
+                    : `${remoteDir}/${e.name}`;
+                return new BjornRemoteItem(e.name, remotePath, e.isDirectory, e.size);
+            });
+        } catch {
+            return [
+                new BjornInfoItem('Error loading remote files', 'error', 'testing.iconFailed', 'Check connection', 'bjornRemoteError')
+            ];
+        }
     }
 
     private buildConnectionItem(): BjornInfoItem {

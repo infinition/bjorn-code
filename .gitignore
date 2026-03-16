@@ -8,3 +8,4 @@ dist
 .env
 # VS Code internal storage for this extension if any
 .vscode
+.claude

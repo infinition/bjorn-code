@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import type { SFTPWrapper, FileEntry, Stats } from 'ssh2';
 import { BjornTreeDataProvider, SyncStatus } from './treeDataProvider';
 import { ConnectionManager, ConnectionState } from './core/ConnectionManager';
@@ -101,13 +102,14 @@ export class SyncEngine implements vscode.Disposable {
         });
     }
 
-    private ensureConnectionForTarget(resource?: vscode.Uri): ConnectionManager | undefined {
+    private ensureConnectionForTarget(): ConnectionManager | undefined {
         const target = this.getManagedTarget();
         if (!target) {
             return undefined;
         }
 
         this.queue.updateConcurrency(target.settings.maxConcurrency);
+        this.logger.setLevel(target.settings.logLevel);
 
         const manager = ConnectionManager.getOrCreate(
             {
@@ -242,6 +244,9 @@ export class SyncEngine implements vscode.Disposable {
         }
     }
 
+    /**
+     * Push incremental changes (pendingChanges only).
+     */
     public async syncAll(): Promise<void> {
         if (this.syncing) {
             return;
@@ -298,6 +303,64 @@ export class SyncEngine implements vscode.Disposable {
         );
     }
 
+    /**
+     * Full sync: scan the entire local tree and push every file to remote.
+     */
+    public async fullSync(): Promise<void> {
+        if (this.syncing) {
+            return;
+        }
+
+        const target = getWorkspaceTarget();
+        if (!target || !target.settings.enabled) {
+            vscode.window.showWarningMessage('Acid Bjorn is disabled.');
+            return;
+        }
+
+        await this.connect(target.workspaceFolder.uri);
+
+        await vscode.window.withProgress(
+            {
+                location: vscode.ProgressLocation.Notification,
+                title: 'Acid Bjorn: Full push to remote',
+                cancellable: true
+            },
+            async (progress, token) => {
+                this.syncing = true;
+                try {
+                    const files = this.collectLocalFiles(
+                        target.workspaceRoot,
+                        target.settings.exclusions,
+                        target.settings.includes,
+                        target.settings.syncMode
+                    );
+                    const total = files.length;
+                    let queued = 0;
+
+                    for (const filePath of files) {
+                        if (token.isCancellationRequested) {
+                            break;
+                        }
+                        const rel = path.relative(target.workspaceRoot, filePath).replace(/\\/g, '/');
+                        const remotePath = path.posix.join(target.settings.remotePath, rel);
+                        queued++;
+                        progress.report({
+                            message: `${queued}/${total}: ${rel}`,
+                            increment: (1 / total) * 100
+                        });
+                        this.queue.enqueue(this.createUploadJob(filePath, remotePath, target.settings.maxRetries, target.settings.operationTimeoutMs));
+                    }
+
+                    await this.waitForQueueDrain();
+                    this.updateState('CONNECTED');
+                    vscode.window.showInformationMessage(`Acid Bjorn: Full push completed (${queued} files).`);
+                } finally {
+                    this.syncing = false;
+                }
+            }
+        );
+    }
+
     public async syncPull(): Promise<void> {
         if (this.syncing) {
             return;
@@ -315,28 +378,103 @@ export class SyncEngine implements vscode.Disposable {
             {
                 location: vscode.ProgressLocation.Notification,
                 title: 'Acid Bjorn: Pull from remote',
-                cancellable: false
+                cancellable: true
             },
-            async (progress) => {
+            async (progress, token) => {
                 this.syncing = true;
                 this.pullInProgress = true;
                 try {
                     const files = await this.collectRemoteFiles(target.settings.remotePath, target.settings.exclusions);
+                    const total = files.length;
+                    let queued = 0;
                     for (const remotePath of files) {
+                        if (token.isCancellationRequested) {
+                            break;
+                        }
                         const rel = path.posix.relative(target.settings.remotePath, remotePath);
                         const localPath = path.join(target.workspaceRoot, rel);
-                        progress.report({ message: rel });
+                        queued++;
+                        progress.report({
+                            message: `${queued}/${total}: ${rel}`,
+                            increment: (1 / total) * 100
+                        });
                         this.queue.enqueue(this.createDownloadJob(localPath, remotePath, target.settings.maxRetries, target.settings.operationTimeoutMs));
                     }
 
                     await this.waitForQueueDrain();
-                    vscode.window.showInformationMessage('Acid Bjorn: Pull completed.');
+                    vscode.window.showInformationMessage(`Acid Bjorn: Pull completed (${queued} files).`);
                 } finally {
                     this.syncing = false;
                     this.pullInProgress = false;
                 }
             }
         );
+    }
+
+    /**
+     * Diff a local file against the remote version using VS Code's built-in diff editor.
+     */
+    public async diffWithRemote(uri: vscode.Uri): Promise<void> {
+        const target = this.getManagedTarget();
+        if (!target || !target.settings.enabled) {
+            vscode.window.showWarningMessage('Acid Bjorn is disabled.');
+            return;
+        }
+
+        if (!this.isManagedPath(uri.fsPath)) {
+            vscode.window.showWarningMessage('Acid Bjorn: path is outside configured sync root.');
+            return;
+        }
+
+        const relativePath = path.relative(target.workspaceRoot, uri.fsPath).replace(/\\/g, '/');
+        if (relativePath.startsWith('..')) {
+            return;
+        }
+        const remotePath = path.posix.join(target.settings.remotePath, relativePath);
+
+        await this.connect();
+
+        const tmpDir = path.join(os.tmpdir(), 'acid-bjorn-diff');
+        await fs.promises.mkdir(tmpDir, { recursive: true });
+        const tempFile = path.join(tmpDir, `remote_${path.basename(uri.fsPath)}`);
+
+        try {
+            await this.fastGet(remotePath, tempFile, target.settings.operationTimeoutMs);
+        } catch (err: any) {
+            vscode.window.showErrorMessage(`Acid Bjorn: Cannot fetch remote file: ${err.message}`);
+            return;
+        }
+
+        const remoteUri = vscode.Uri.file(tempFile);
+        const title = `${path.basename(uri.fsPath)} (Remote) ↔ ${path.basename(uri.fsPath)} (Local)`;
+        await vscode.commands.executeCommand('vscode.diff', remoteUri, uri, title);
+    }
+
+    /**
+     * Get a sync summary: what would be pushed (changed files).
+     */
+    public getSyncSummary(): { added: string[]; modified: string[]; deleted: string[] } {
+        const target = this.getManagedTarget();
+        const added: string[] = [];
+        const modified: string[] = [];
+        const deleted: string[] = [];
+
+        if (!target) {
+            return { added, modified, deleted };
+        }
+
+        for (const [filePath, kind] of this.pendingChanges.entries()) {
+            const rel = path.relative(target.workspaceRoot, filePath).replace(/\\/g, '/');
+            if (kind === 'delete') {
+                deleted.push(rel);
+            } else if (this.lastSyncedSignature.has(filePath)) {
+                modified.push(rel);
+            } else {
+                added.push(rel);
+            }
+        }
+
+        return { added, modified, deleted };
     }
 
     public async forcePushUri(uri: vscode.Uri): Promise<void> {
@@ -637,7 +775,28 @@ export class SyncEngine implements vscode.Disposable {
         return files;
     }
 
-    private collectLocalFiles(root: string, exclusions: string[], includes: string[], syncMode: 'mirror' | 'selective'): string[] {
+    /**
+     * Collect remote files as tree items for the remote browser.
+     */
+    public async listRemoteDirectory(remoteDir: string): Promise<{ name: string; isDirectory: boolean; size: number; mtime: number }[]> {
+        const entries = await this.readDir(remoteDir, 30000);
+        return entries
+            .filter((e) => e.filename !== '.' && e.filename !== '..')
+            .map((e) => ({
+                name: e.filename,
+                isDirectory: e.longname?.startsWith('d') || ((e.attrs.mode ?? 0) & 0o40000) === 0o40000,
+                size: e.attrs.size ?? 0,
+                mtime: e.attrs.mtime ?? 0
+            }))
+            .sort((a, b) => {
+                if (a.isDirectory === b.isDirectory) {
+                    return a.name.localeCompare(b.name);
+                }
+                return a.isDirectory ? -1 : 1;
+            });
+    }
+
+    public collectLocalFiles(root: string, exclusions: string[], includes: string[], syncMode: 'mirror' | 'selective'): string[] {
         const files: string[] = [];
 
         const shouldInclude = (rel: string): boolean => {
@@ -657,7 +816,12 @@ export class SyncEngine implements vscode.Disposable {
         };
 
         const walk = (dir: string): void => {
-            const entries = fs.readdirSync(dir, { withFileTypes: true });
+            let entries: fs.Dirent[];
+            try {
+                entries = fs.readdirSync(dir, { withFileTypes: true });
+            } catch {
+                return;
+            }
             for (const entry of entries) {
                 const fullPath = path.join(dir, entry.name);
                 const rel = path.relative(root, fullPath).replace(/\\/g, '/');
@@ -680,17 +844,52 @@ export class SyncEngine implements vscode.Disposable {
         return files;
     }
 
+    /**
+     * Proper glob matching using minimatch-like logic.
+     * Supports: ** (any depth), * (single segment), ? (single char).
+     */
     private matchesPattern(filePath: string, pattern: string): boolean {
-        const escaped = pattern
-            .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-            .replace(/\*\*/g, '.*')
-            .replace(/\*/g, '[^/]*');
+        // Convert glob pattern to regex properly
+        let regex = '';
+        let i = 0;
+        while (i < pattern.length) {
+            const ch = pattern[i];
+            if (ch === '*' && pattern[i + 1] === '*') {
+                // ** matches any path segments
+                if (pattern[i + 2] === '/') {
+                    regex += '(?:.+/)?';
+                    i += 3;
+                } else {
+                    regex += '.*';
+                    i += 2;
+                }
+            } else if (ch === '*') {
+                regex += '[^/]*';
+                i++;
+            } else if (ch === '?') {
+                regex += '[^/]';
+                i++;
+            } else if ('.+^${}()|[]\\'.includes(ch)) {
+                regex += '\\' + ch;
+                i++;
+            } else {
+                regex += ch;
+                i++;
+            }
+        }
 
-        return new RegExp(`^${escaped}$`).test(filePath);
+        return new RegExp(`^${regex}$`).test(filePath);
     }
 
     private isExcluded(relativePath: string, exclusions: string[]): boolean {
-        return exclusions.some((pattern) => this.matchesPattern(relativePath, pattern) || relativePath.includes(pattern));
+        const segments = relativePath.split('/');
+        return exclusions.some((pattern) => {
+            // Direct segment match (e.g., ".git" matches any path containing ".git" as a segment)
+            if (!pattern.includes('/') && !pattern.includes('*') && !pattern.includes('?')) {
+                return segments.some((seg) => this.matchesPattern(seg, pattern));
+            }
+            return this.matchesPattern(relativePath, pattern);
+        });
     }
 
     private async getSftp(): Promise<SFTPWrapper> {
@@ -736,16 +935,39 @@ export class SyncEngine implements vscode.Disposable {
 
     private async renameRemote(from: string, to: string, timeoutMs: number): Promise<void> {
         const sftp = await this.getSftp();
-        await this.withTimeout(
+
+        // SFTP v3 rename fails when the destination already exists.
+        // Try OpenSSH POSIX rename extension first (atomic overwrite),
+        // then fall back to unlink + rename.
+        const posixRename = (): Promise<void> =>
             new Promise<void>((resolve, reject) => {
+                (sftp as any).ext_openssh_rename(from, to, (err: Error | undefined) => {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve();
+                    }
+                });
+            });
+
+        const unlinkThenRename = async (): Promise<void> => {
+            // Remove existing destination (ignore errors if it doesn't exist)
+            await new Promise<void>((resolve) => {
+                sftp.unlink(to, () => resolve());
+            });
+            await new Promise<void>((resolve, reject) => {
                 sftp.rename(from, to, (err) => {
                     if (err) {
                         reject(err);
-                        return;
+                    } else {
+                        resolve();
                     }
-                    resolve();
                 });
-            }),
+            });
+        };
+
+        await this.withTimeout(
+            posixRename().catch(() => unlinkThenRename()),
             timeoutMs,
             `rename timeout ${from}`
         );
@@ -822,6 +1044,10 @@ export class SyncEngine implements vscode.Disposable {
             };
             this.queue.on('queueChanged', listener);
         });
+    }
+
+    public getConnectionManager(): ConnectionManager | undefined {
+        return this.connection;
     }
 
     public dispose(): void {

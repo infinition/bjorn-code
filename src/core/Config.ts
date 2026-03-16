@@ -3,6 +3,8 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
 export interface AcidBjornSettings {
     enabled: boolean;
     autoSync: boolean;
@@ -24,6 +26,8 @@ export interface AcidBjornSettings {
     pythonPath: string;
     sudoByDefault: boolean;
     services: string[];
+    logLevel: LogLevel;
+    bjornServiceName: string;
 }
 
 export interface WorkspaceTarget {
@@ -39,8 +43,9 @@ function expandHome(p?: string): string | undefined {
     if (!p) {
         return undefined;
     }
-    if (p.startsWith('~')) {
-        return path.join(os.homedir(), p.slice(1));
+    if (p.startsWith('~/') || p.startsWith('~\\') || p === '~') {
+        const home = process.env.USERPROFILE || process.env.HOME || os.homedir();
+        return path.join(home, p.slice(1));
     }
     return p;
 }
@@ -78,7 +83,9 @@ export function getWorkspaceTarget(resource?: vscode.Uri): WorkspaceTarget | und
         pollingIntervalSec: Math.max(1, config.get<number>('pollingIntervalSec', 10)),
         pythonPath: config.get<string>('pythonPath', '/usr/bin/python3'),
         sudoByDefault: config.get<boolean>('sudoByDefault', false),
-        services: config.get<string[]>('services', [])
+        services: config.get<string[]>('services', []),
+        logLevel: config.get<LogLevel>('logLevel', 'info'),
+        bjornServiceName: config.get<string>('bjornServiceName', 'bjorn')
     };
 
     return {

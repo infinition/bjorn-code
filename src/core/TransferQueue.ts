@@ -108,31 +108,36 @@ export class TransferQueue extends EventEmitter {
     private async execute(job: TransferJob): Promise<void> {
         try {
             await job.run(job.abortController.signal);
+            this.inflight.delete(job.id);
             this.emit('jobCompleted', job);
             this.dedupe.delete(job.key);
         } catch (err) {
+            this.inflight.delete(job.id);
+
             if (job.abortController.signal.aborted) {
                 this.emit('jobCancelled', job);
                 this.dedupe.delete(job.key);
             } else if (job.retries < job.maxRetries) {
                 job.retries += 1;
                 const delayMs = Math.min(30000, Math.pow(2, job.retries) * 500);
+                this.emit('jobRetry', job, err);
                 setTimeout(() => {
-                    this.inflight.delete(job.id);
                     this.pending.push(job);
                     this.pending.sort((a, b) => priorityRank[a.priority] - priorityRank[b.priority]);
+                    this.emit('queueChanged', this.snapshot());
                     this.schedule();
                 }, delayMs);
-                this.emit('jobRetry', job, err);
+                // Return early — do not emit queueChanged/schedule below since
+                // the job will be re-queued after the delay timer fires.
+                this.emit('queueChanged', this.snapshot());
                 return;
             } else {
                 this.emit('jobFailed', job, err);
                 this.dedupe.delete(job.key);
             }
-        } finally {
-            this.inflight.delete(job.id);
-            this.emit('queueChanged', this.snapshot());
-            this.schedule();
         }
+
+        this.emit('queueChanged', this.snapshot());
+        this.schedule();
     }
 }

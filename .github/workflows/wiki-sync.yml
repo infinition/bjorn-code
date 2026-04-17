@@ -1,27 +1,23 @@
 name: Wiki Sync
 
 on:
-  # Triggered on push to main when wiki files change
   push:
     branches: [ main ]
     paths:
       - 'wiki/**'
-      - 'acidwiki.json'
+      - '.github/acidwiki.json'     
       - '.github/workflows/wiki-sync.yml'
-
-  # Manual trigger from the Actions UI
+  
   workflow_dispatch:
 
-  # Automatic: every day at 4:00 AM (UTC)
   schedule:
     - cron: '0 4 * * *'
 
 permissions:
-  contents: write
+  contents: write  
   pages: write
   id-token: write
 
 jobs:
   deploy-wiki:
-    # Calls the reusable workflow from AcidWiki
     uses: infinition/AcidWiki/.github/workflows/reusable-wiki-sync.yml@main

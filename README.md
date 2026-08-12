@@ -1,4 +1,5 @@
-<img width="128" height="128" alt="Bjorn Code" src="https://github.com/user-attachments/assets/b2e2e2ba-e4b3-4b3c-ba8a-a6b9f7566c88" />
+<img width="302" height="302" alt="image-removebg-preview (3)" src="https://github.com/user-attachments/assets/63251571-05e6-486a-bef4-68a8c796c28c" />
+
 
 # Bjorn Code
 
